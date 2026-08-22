@@ -139,12 +139,6 @@
     "duration": 217.779955
   },
   {
-    "file": "27.-fuji.mp3",
-    "title": "27. Fuji",
-    "addedAt": "2026-08-22T19:47:27.537Z",
-    "duration": 165.140317
-  },
-  {
     "file": "56.-where-we-are.mp3",
     "title": "56. Where We Are",
     "addedAt": "2026-08-22T19:47:27.537Z",
@@ -173,5 +167,11 @@
     "title": "98. Apollo",
     "addedAt": "2026-08-22T20:39:35.715Z",
     "duration": 156.920454
+  },
+  {
+    "file": "27.-fuji.mp3",
+    "title": "27. Fuji",
+    "addedAt": "2026-08-22T19:47:27.537Z",
+    "duration": 165.140317
   }
 ]
