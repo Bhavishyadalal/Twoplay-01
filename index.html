@@ -1953,7 +1953,16 @@ const ICE_CONFIG = {
         { urls: 'turn:in.relay.metered.ca:80', username: 'c81b9d3c66260e29759cd61f', credential: '4bNc9ueLEH0ocQTZ' },
         { urls: 'turn:in.relay.metered.ca:80?transport=tcp', username: 'c81b9d3c66260e29759cd61f', credential: '4bNc9ueLEH0ocQTZ' },
         { urls: 'turn:in.relay.metered.ca:443', username: 'c81b9d3c66260e29759cd61f', credential: '4bNc9ueLEH0ocQTZ' },
-        { urls: 'turns:in.relay.metered.ca:443?transport=tcp', username: 'c81b9d3c66260e29759cd61f', credential: '4bNc9ueLEH0ocQTZ' }
+        { urls: 'turns:in.relay.metered.ca:443?transport=tcp', username: 'c81b9d3c66260e29759cd61f', credential: '4bNc9ueLEH0ocQTZ' },
+        // ---- Express Turn (free tier) — two credential pairs on the same
+        // shared relay host, added as extra fallback candidates alongside
+        // the Metered servers above. Purely additive: if these are ever
+        // unreachable or rate-limited, the browser just falls back to the
+        // other entries in this list, same as it already does today. ----
+        { urls: 'turn:free.expressturn.com:3478', username: '000000002101431517', credential: 'st6pOqjUb+CM0yv4KIKHWGoLu7s=' },
+        { urls: 'turn:free.expressturn.com:3478?transport=tcp', username: '000000002101431517', credential: 'st6pOqjUb+CM0yv4KIKHWGoLu7s=' },
+        { urls: 'turn:free.expressturn.com:3478', username: '000000002102780036', credential: 'fukpn7wwgsKVZ7IAFDkLIO1a3wo=' },
+        { urls: 'turn:free.expressturn.com:3478?transport=tcp', username: '000000002102780036', credential: 'fukpn7wwgsKVZ7IAFDkLIO1a3wo=' }
     ]
 };
 
