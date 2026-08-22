@@ -1,0 +1,20 @@
+<svg width="140" height="140" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .cat-tail{animation:sway 2.4s ease-in-out infinite;transform-origin:31px 30px;}
+    .cat-ear-l{animation:twitchL 3.2s ease-in-out infinite;transform-origin:10px 12px;}
+    .cat-ear-r{animation:twitchR 3.6s ease-in-out infinite;transform-origin:32px 12px;}
+    .cat-eye{animation:blink 3.8s ease-in-out infinite;transform-origin:center;}
+    @keyframes sway{0%,100%{transform:rotate(0deg);}50%{transform:rotate(-8deg);}}
+    @keyframes twitchL{0%,90%,100%{transform:rotate(0deg);}92%{transform:rotate(-6deg);}96%{transform:rotate(4deg);}}
+    @keyframes twitchR{0%,88%,100%{transform:rotate(0deg);}91%{transform:rotate(6deg);}95%{transform:rotate(-4deg);}}
+    @keyframes blink{0%,92%,100%{transform:scaleY(1);}95%{transform:scaleY(0.1);}}
+  </style>
+  <path class="cat-tail" d="M31 30c4 1 6-2 5-5" stroke="#FFD9EC" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+  <path class="cat-ear-l" d="M12 15 9 6l7 4Z" fill="#FFE3F0" stroke="#2B2440" stroke-width="1"/>
+  <path class="cat-ear-r" d="M30 15l3-9-7 4Z" fill="#FFE3F0" stroke="#2B2440" stroke-width="1"/>
+  <ellipse cx="21" cy="22" rx="12" ry="10.5" fill="#FFF3E4" stroke="#2B2440" stroke-width="1"/>
+  <rect class="cat-eye" x="14.5" y="20" width="3.4" height="4.2" rx="1.7" fill="#2B2440"/>
+  <rect class="cat-eye" x="24.1" y="20" width="3.4" height="4.2" rx="1.7" fill="#2B2440"/>
+  <path d="M19.3 27c1 .9 2.4.9 3.4 0" stroke="#D14E82" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+  <ellipse cx="21" cy="25.3" rx="1.1" ry="0.9" fill="#FF9EBE"/>
+</svg>
