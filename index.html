@@ -2148,6 +2148,7 @@ let voiceMuted = false;
 let voiceMakingOffer = false; // guards against signaling glare (both sides offering at once)
 let voicePendingIce = [];     // ICE candidates that arrived before we had a remote description to attach them to
 let voiceCallId = 0;          // bumped on every setup/teardown so stale async callbacks (mic prompt, negotiation) can detect they're for a dead call
+let voiceConnectTimer = null; // if a call never actually connects, tell the user instead of leaving it silently "in call" forever
 
 let voiceLevelInterval = null;
 let localAnalyser = null, remoteAnalyser = null;
@@ -2250,10 +2251,27 @@ function setupVoicePeerConnection(isInitiator) {
 
     voicePC.onconnectionstatechange = () => {
         if (!voicePC) return;
+        if (voicePC.connectionState === 'connected' && voiceConnectTimer) {
+            clearTimeout(voiceConnectTimer);
+            voiceConnectTimer = null;
+        }
         if (voicePC.connectionState === 'failed' || voicePC.connectionState === 'closed') {
             if (voiceInCall) endVoiceCallLocal(false);
         }
     };
+
+    // Previously a call that never actually connected (e.g. both TURN
+    // relays unreachable on a restrictive network) just sat there — the mic
+    // icon showed "in call" indefinitely with no error, no audio, and
+    // nothing telling the user it had failed. Time out and say so instead.
+    if (voiceConnectTimer) clearTimeout(voiceConnectTimer);
+    voiceConnectTimer = setTimeout(() => {
+        voiceConnectTimer = null;
+        if (voicePC && voicePC.connectionState !== 'connected' && voiceInCall) {
+            toast("Call couldn't connect. This can happen on some networks — try a different network or Wi-Fi.", 6000);
+            endVoiceCallLocal(true);
+        }
+    }, 20000);
 
     if (isInitiator) {
         voicePC.onnegotiationneeded = async () => {
@@ -2369,6 +2387,7 @@ function endVoiceCallLocal(silent) {
     voiceInCall = false;
     voiceMuted = false;
     voicePendingIce = [];
+    if (voiceConnectTimer) { clearTimeout(voiceConnectTimer); voiceConnectTimer = null; }
     stopVoiceLevelMonitor();
     if (voicePC) { try { voicePC.close(); } catch (e) {} voicePC = null; }
     if (localAudioStream) { localAudioStream.getTracks().forEach(t => t.stop()); localAudioStream = null; }
@@ -3246,6 +3265,19 @@ function buildMusicTrackList() {
 // no error and no feedback ("sometimes doesn't play"). With a token, a
 // newer pick always proceeds and simply invalidates the older in-flight
 // one instead of being silently swallowed by it.
+//
+// This also used to wait for the element's 'canplay' event before calling
+// play() at all, on the theory that calling play() before the browser had
+// buffered enough would get rejected. That wait is what was actually
+// breaking playback: play() must run inside (or directly chained from) the
+// click handler to count as triggered by a user gesture. Waiting on an
+// async, network-driven 'canplay' event breaks that chain, and several
+// browsers (Safari/iOS in particular, and Chrome under some autoplay-policy
+// states) then reject the later play() call outright — silently, or with a
+// generic error, regardless of whether the file is fine. Calling play()
+// immediately and letting the element buffer in the background is both the
+// correct and the more compatible approach; the returned promise still
+// tells us if it actually failed.
 let musicLoadToken = 0;
 // fromRemote: true when this call is applying the opponent's broadcasted
 // choice rather than a local click — suppresses re-broadcasting it back.
@@ -3259,41 +3291,27 @@ function playMusicTrack(file, fromRemote) {
         el.src = file;
     }
 
-    const attemptPlay = () => {
-        if (token !== musicLoadToken) return; // superseded by a newer pick while we were waiting
-        el.play().then(() => {
-            if (token !== musicLoadToken) return;
-            musicIsPlaying = true;
-            saveMusicPrefs();
-            updateMusicButtons();
-            buildMusicTrackList();
-            if (!fromRemote) broadcastMusicState();
-        }).catch(e => {
-            if (token !== musicLoadToken) return;
-            console.error('Music playback failed:', e);
+    el.play().then(() => {
+        if (token !== musicLoadToken) return; // superseded by a newer pick meanwhile
+        musicIsPlaying = true;
+        saveMusicPrefs();
+        updateMusicButtons();
+        buildMusicTrackList();
+        if (!fromRemote) broadcastMusicState();
+    }).catch(e => {
+        if (token !== musicLoadToken) return; // this attempt is stale; a newer one is in flight
+        console.error('Music playback failed:', e);
+        if (fromRemote) {
+            // No click happened on this side — some browsers (Safari/iOS
+            // especially) block programmatic play() without a fresh user
+            // gesture even though the file itself is fine. musicCurrentFile
+            // is already set to the synced track, so tapping the button
+            // now just resumes it rather than erroring again.
+            toast(oppName + " started music — tap \u266A to join in.");
+        } else {
             toast("Couldn't play that track.");
-        });
-    };
-
-    if (isNewTrack && el.readyState < 2) {
-        // Source just changed and isn't ready yet — wait for it before calling play(),
-        // otherwise the browser can reject play() mid-load (common on slow connections).
-        const onReady = () => {
-            el.removeEventListener('canplay', onReady);
-            el.removeEventListener('error', onLoadError);
-            attemptPlay();
-        };
-        const onLoadError = () => {
-            el.removeEventListener('canplay', onReady);
-            el.removeEventListener('error', onLoadError);
-            if (token !== musicLoadToken) return;
-            toast("Couldn't play that track.");
-        };
-        el.addEventListener('canplay', onReady, { once: true });
-        el.addEventListener('error', onLoadError, { once: true });
-    } else {
-        attemptPlay();
-    }
+        }
+    });
 }
 
 function stopMusic(fromRemote) {
