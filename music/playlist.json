@@ -1,10 +1,5 @@
 [
   {
-    "file": "1.-otherworld.mp3",
-    "title": "1. Otherworld",
-    "addedAt": "2026-08-22T19:47:27.537Z"
-  },
-  {
     "file": "13.-distant-shimmers.mp3",
     "title": "13. Distant Shimmers",
     "addedAt": "2026-08-22T19:47:27.537Z"
@@ -124,5 +119,11 @@
     "title": "4. Teahouse Spirits",
     "addedAt": "2026-08-22T19:47:27.537Z",
     "duration": 220.798549
+  },
+  {
+    "file": "1.-otherworld.mp3",
+    "title": "1. Otherworld",
+    "addedAt": "2026-08-22T19:47:27.537Z",
+    "duration": 138.716009
   }
 ]
