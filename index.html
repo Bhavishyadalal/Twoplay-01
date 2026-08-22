@@ -926,14 +926,20 @@ a { color: var(--accent); }
     .players-row { padding: 4px 2px 8px; }
 }
 /* Header overflow fix: the row of icon buttons moves into a dropdown behind
-   a single "more" button so the header pill never grows wider than the
-   viewport and buttons stop spilling outside the rounded border. This used
-   to only trigger under 700px width, which missed touch tablets that are
-   wider than that but still too narrow (given the app's fixed 560px shell
-   plus padding) to fit every icon in one row — this now matches the
-   pointer:coarse condition used elsewhere on the page so those devices get
-   the same collapsed menu instead of overflowing buttons. */
-@media (max-width: 700px), (pointer: coarse) {
+   a single "more" button so the header pill never grows wider than its
+   container and buttons stop spilling outside the rounded border.
+   IMPORTANT: #app is a centered shell capped at max-width:560px (see
+   `#app { max-width: 560px }` above) — that cap holds no matter how wide
+   the browser window is, so a media query keyed to the *viewport* (e.g.
+   max-width:700px) is wrong: on a wide desktop window the viewport query
+   never matches, yet the header is still squeezed into that same 560px
+   box. With the ping pill, status pill (which can grow to fit text like
+   "8ms · direct"), and 5 icon buttons all in one unshrinkable row, that
+   box is consistently too narrow to fit everything — this is a desktop
+   bug just as much as a mobile one. So this breakpoint is set well above
+   the shell's own max width (960px) to guarantee it always applies
+   whenever the shell is at or near its capped size, on any device. */
+@media (max-width: 960px), (pointer: coarse) {
     .header-more-btn { display: inline-flex; }
     .header-actions {
         display: none;
@@ -959,6 +965,14 @@ a { color: var(--accent); }
     #app-header { padding: 10px 10px; gap: 6px; }
     .mini-room-code { display: none; }
     .status-pill { padding: 0 8px; font-size: 10px; }
+}
+/* Even with icons collapsed into the "more" menu, the ping pill + status
+   pill + logo/room-code text can still be tight on narrower shells since
+   those stay inline (not collapsed). Let the ping pill hide its text
+   below ~460px and rely on the status pill's dot/color alone; room code
+   already drops at 380px above. */
+@media (max-width: 460px) {
+    .ping-display { padding: 3px 6px; font-size: 9px; }
 }
 .board-frame.flipping { opacity: 0; }
 
@@ -991,7 +1005,7 @@ a { color: var(--accent); }
     touch-action: none;
     cursor: crosshair;
 }
-#wb-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#wb-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 .wb-toolbar {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     width: 100%; margin-top: 10px; padding: 8px 10px;
@@ -4741,10 +4755,19 @@ function updateMusicButtons() {
         return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     }
 
+    let activePointerId = null;
+
     function onPointerDown(e) {
         if (!ensureCanvas()) return;
+        // Ignore a second finger touching down while a stroke is already
+        // in progress (e.g. a palm touch on mobile) — only the pointer
+        // that started the stroke should be able to continue it. Without
+        // this, a stray second touch could start its own overlapping
+        // stroke or yank lastPt to a far-away coordinate.
+        if (drawing && e.pointerId !== activePointerId) return;
         e.preventDefault();
         drawing = true;
+        activePointerId = e.pointerId;
         const p = ptFromEvent(e);
         lastPt = p;
         currentStroke = { points: [p], color: erasing ? '#000' : color, size: erasing ? size * 3 : size, erase: erasing };
@@ -4754,7 +4777,7 @@ function updateMusicButtons() {
         try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
     }
     function onPointerMove(e) {
-        if (!drawing || !currentStroke) return;
+        if (!drawing || !currentStroke || e.pointerId !== activePointerId) return;
         e.preventDefault();
         const p = ptFromEvent(e);
         paintSegment(lastPt, p, currentStroke.color, currentStroke.size, currentStroke.erase);
@@ -4763,8 +4786,9 @@ function updateMusicButtons() {
         queueSend({ kind: 'pt', x: p.x, y: p.y });
     }
     function onPointerUp(e) {
-        if (!drawing) return;
+        if (!drawing || e.pointerId !== activePointerId) return;
         drawing = false;
+        activePointerId = null;
         currentStroke = null;
         lastPt = null;
         flushQueue();
