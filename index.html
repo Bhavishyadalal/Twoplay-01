@@ -791,7 +791,7 @@ a { color: var(--accent); }
 /* ============================================================
    IN-ROOM APP SHELL
    ============================================================ */
-#app { display: none; min-height: 100vh; min-height: 100dvh; flex-direction: column; max-width: 560px; margin: 0 auto; padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px)); padding-left: calc(12px + env(safe-area-inset-left, 0px)); padding-right: calc(12px + env(safe-area-inset-right, 0px)); }
+#app { display: none; height: 100vh; height: 100dvh; flex-direction: column; max-width: 560px; margin: 0 auto; padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px)); padding-left: calc(12px + env(safe-area-inset-left, 0px)); padding-right: calc(12px + env(safe-area-inset-right, 0px)); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
 #app.live { display: flex; animation: appIn 0.36s cubic-bezier(.2,.85,.3,1.1); }
 @keyframes appIn { from { opacity: 0; transform: translateY(10px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 #landing.leaving { animation: landingOut 0.24s ease-in forwards; }
@@ -902,7 +902,7 @@ a { color: var(--accent); }
 .preview-banner button { text-decoration: underline; font-size: 12px; color: var(--accent); font-weight: 700; }
 .status-line { text-align: center; font-size: 12px; color: var(--text-faint); font-weight: 700; margin: 0 4px 10px; min-height: 16px; }
 
-#game-stage { flex: 1; display: flex; align-items: center; justify-content: center; padding: 4px; }
+#game-stage { flex: 0 1 auto; display: flex; align-items: center; justify-content: center; padding: 4px; }
 .game-panel { width: 100%; display: flex; flex-direction: column; align-items: center; }
 .game-panel.hidden { display: none; }
 
@@ -962,10 +962,23 @@ a { color: var(--accent); }
 .quick-chat-row button { flex: 1; padding: 8px 0; border-radius: 20px; background: var(--surface-2); border: 2px solid var(--border); font-size: 11px; font-weight: 700; color: var(--text-dim); display: flex; align-items: center; justify-content: center; transition: background 0.15s, transform 0.12s, border-color 0.15s; }
 .quick-chat-row button:active { transform: scale(0.94); }
 .quick-chat-row button:hover { background: var(--surface-3); border-color: rgba(43,36,64,0.16); }
-.chat-drawer { margin: 0 4px; background: var(--surface); border: 2px solid var(--border-soft); border-radius: var(--blob-md); overflow: hidden; box-shadow: var(--shadow-soft); animation: chatDrawerIn 0.22s cubic-bezier(.2,.9,.3,1.2); }
+.chat-drawer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    margin: 0 auto; width: 100%; max-width: 560px;
+    padding-left: calc(4px + env(safe-area-inset-left, 0px));
+    padding-right: calc(4px + env(safe-area-inset-right, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+    background: var(--surface); border: 2px solid var(--border-soft); border-bottom: none;
+    border-radius: var(--blob-md) var(--blob-md) 0 0;
+    overflow: hidden; box-shadow: 0 -8px 24px rgba(43,36,64,0.18);
+    animation: chatDrawerIn 0.22s cubic-bezier(.2,.9,.3,1.2);
+}
+.chat-drawer-backdrop { display: none; position: fixed; inset: 0; z-index: 55; background: rgba(43,36,64,0.35); }
+.chat-drawer-backdrop.visible { display: block; }
 .chat-drawer.hidden { display: none; }
 @keyframes chatDrawerIn { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-.chat-log { min-height: 120px; max-height: 260px; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; }
+.chat-log { min-height: 120px; max-height: min(50vh, 320px); overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; }
 .chat-empty { text-align: center; font-size: 13px; color: var(--text-faint); padding: 24px 0; }
 .chat-msg { align-self: flex-start; background: var(--surface-3); padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; font-weight: 600; line-height: 1.4; max-width: 78%; box-shadow: var(--shadow-soft); animation: chatMsgIn 0.2s ease-out; }
 .chat-msg.me { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 16px 16px 4px 16px; }
@@ -1396,6 +1409,7 @@ a { color: var(--accent); }
         <button onclick="toggleChat()" title="Chat" aria-label="Chat"><svg class="btn-icon-sm" style="margin:0;" viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H8l-4 4V5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
     </div>
 
+    <div class="chat-drawer-backdrop" id="chat-drawer-backdrop" onclick="toggleChat()"></div>
     <div class="chat-drawer hidden" id="chat-drawer">
         <div class="chat-log" id="chat-log"><div class="chat-empty">Say hi 👋</div></div>
         <div class="chat-input-row">
@@ -2874,7 +2888,10 @@ function closeConfirm() { const cb = confirmCancelCallback; hideConfirmOverlay()
 document.getElementById('confirm-yes-btn').addEventListener('click', () => { const cb = confirmCallback; hideConfirmOverlay(); if (cb) cb(); });
 
 // ---- Chat ----
-function toggleChat() { document.getElementById('chat-drawer').classList.toggle('hidden'); }
+function toggleChat() {
+    document.getElementById('chat-drawer').classList.toggle('hidden');
+    document.getElementById('chat-drawer-backdrop').classList.toggle('visible');
+}
 function sendChat() {
     const input = document.getElementById('chat-input');
     const msg = input.value.trim();
