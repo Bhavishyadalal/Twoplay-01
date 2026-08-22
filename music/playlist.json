@@ -25,11 +25,6 @@
     "addedAt": "2026-08-22T19:47:27.537Z"
   },
   {
-    "file": "36.-berlin.mp3",
-    "title": "36. Berlin",
-    "addedAt": "2026-08-22T19:47:27.537Z"
-  },
-  {
     "file": "37.-on-fiji-hill.mp3",
     "title": "37. On Fiji Hill",
     "addedAt": "2026-08-22T19:47:27.537Z"
@@ -127,5 +122,11 @@
     "title": "38. Morning Brew",
     "addedAt": "2026-08-22T19:47:27.537Z",
     "duration": 140.016327
+  },
+  {
+    "file": "36.-berlin.mp3",
+    "title": "36. Berlin",
+    "addedAt": "2026-08-22T19:47:27.537Z",
+    "duration": 174.01034
   }
 ]
