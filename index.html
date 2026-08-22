@@ -1830,19 +1830,6 @@ const ICE_CONFIG = {
     ]
 };
 
-// Voice call uses its own TURN provider (ExpressTURN), completely separate
-// from the game-move connection above. Kept as its own config/connection so
-// voice traffic never shares a peer/data-channel with game moves.
-const VOICE_ICE_CONFIG = {
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun.cloudflare.com:3478' },
-        { urls: 'turn:free.expressturn.com:3478', username: '000000002101431517', credential: 'st6pOqjUb+CM0yv4KlKHWGoLu7s=' },
-        { urls: 'turn:free.expressturn.com:3478?transport=tcp', username: '000000002101431517', credential: 'st6pOqjUb+CM0yv4KlKHWGoLu7s=' }
-    ]
-};
-
 function setMyIdDisplay(text, loading) {
     const full = document.getElementById('my-id-display');
     if (full) { full.innerText = text; full.classList.toggle('loading', !!loading); }
@@ -1880,6 +1867,33 @@ function initPeer(attempt) {
         if (conn && conn.open) { c.close(); return; }
         amHost = true;
         setupConnection(c);
+    });
+    // Incoming voice call — mirrors the game peer's own PeerJS call API
+    // instead of a separate hand-rolled RTCPeerConnection, so voice rides
+    // on the exact same, already-proven TURN path as the game data channel.
+    peer.on('call', async (incoming) => {
+        if (voiceInCall) { try { incoming.close(); } catch (e) {} return; }
+        const myCallAttempt = ++voiceCallId;
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+            console.error('Mic permission denied or unavailable:', e);
+            toast('Opponent started a voice call, but mic access failed.');
+            return;
+        }
+        if (myCallAttempt !== voiceCallId || voiceInCall) {
+            stream.getTracks().forEach(t => t.stop());
+            return;
+        }
+        localAudioStream = stream;
+        voiceInCall = true;
+        voiceMuted = false;
+        setVoiceButtonState();
+        incoming.answer(stream);
+        setupMediaVoiceCall(incoming);
+        startVoiceLevelMonitor();
+        toast('Voice call connected.');
     });
     peer.on('disconnected', () => {
         // The signaling socket dropped (peer itself, not the data channel).
@@ -2135,18 +2149,17 @@ function detectConnPath(c) {
 }
 
 // ===================================================================
-// VOICE CALL — separate WebRTC audio connection on its own TURN
-// (ExpressTURN), signaled over the existing game data channel via
-// {type:'voice_signal', ...} messages. Fully independent of the game
-// connection: never touched by initGame()/switch_game, only torn down
-// on leaveRoom() or an explicit "leave call".
+// VOICE CALL — uses PeerJS's own peer.call()/peer.on('call') media-call
+// API on the same "peer" object and ICE_CONFIG/TURN already used for the
+// game data connection (the proven-working path), instead of a separate
+// hand-rolled RTCPeerConnection. Fully independent of the game state:
+// never touched by initGame()/switch_game, only torn down on
+// leaveRoom() or an explicit "leave call".
 // ===================================================================
-let voicePC = null;
+let voiceMediaCall = null;    // the active PeerJS MediaConnection for voice
 let localAudioStream = null;
 let voiceInCall = false;
 let voiceMuted = false;
-let voiceMakingOffer = false; // guards against signaling glare (both sides offering at once)
-let voicePendingIce = [];     // ICE candidates that arrived before we had a remote description to attach them to
 let voiceCallId = 0;          // bumped on every setup/teardown so stale async callbacks (mic prompt, negotiation) can detect they're for a dead call
 let voiceConnectTimer = null; // if a call never actually connects, tell the user instead of leaving it silently "in call" forever
 
@@ -2197,6 +2210,7 @@ function toggleVoiceCall() {
 async function startVoiceCall() {
     if (voiceInCall) return;
     if (!conn || !conn.open) { toast('Not connected to your opponent yet.'); return; }
+    if (!peer || !peer.open) { toast('Not connected yet — try again in a moment.'); return; }
     const myCallAttempt = ++voiceCallId;
     let stream;
     try {
@@ -2207,7 +2221,7 @@ async function startVoiceCall() {
         return;
     }
     // The mic prompt above can take a while (or the user can meanwhile cancel,
-    // or the opponent's own offer can arrive and set up the call for us). If
+    // or the opponent's own call can arrive and set things up for us). If
     // this attempt is no longer the current one, or we're already in a call,
     // don't clobber it — just release this now-unneeded stream.
     if (myCallAttempt !== voiceCallId || voiceInCall) {
@@ -2218,25 +2232,22 @@ async function startVoiceCall() {
     voiceInCall = true;
     voiceMuted = false;
     setVoiceButtonState();
-    setupVoicePeerConnection(true);
+    // Use PeerJS's own call() — the exact same signaling/negotiation path
+    // (and the exact same PeerJS "peer" object + ICE_CONFIG/TURN) already
+    // proven to work for the game's data connection, instead of a second,
+    // hand-rolled RTCPeerConnection on a separate TURN provider. This is
+    // the same approach the working youtube-sharing call feature uses.
+    const remoteId = conn.peer;
+    const mediaCall = peer.call(remoteId, stream);
+    setupMediaVoiceCall(mediaCall);
     startVoiceLevelMonitor();
     toast('Voice call started.');
 }
 
-function setupVoicePeerConnection(isInitiator) {
-    if (voicePC) { try { voicePC.close(); } catch (e) {} }
-    voicePC = new RTCPeerConnection(VOICE_ICE_CONFIG);
-    voicePendingIce = [];
+function setupMediaVoiceCall(call) {
+    voiceMediaCall = call;
 
-    if (localAudioStream) {
-        localAudioStream.getTracks().forEach(track => voicePC.addTrack(track, localAudioStream));
-    }
-
-    voicePC.onicecandidate = e => {
-        if (e.candidate) safeSend({ type: 'voice_signal', kind: 'ice', candidate: e.candidate });
-    };
-
-    voicePC.ontrack = e => {
+    call.on('stream', remoteStream => {
         let audioEl = document.getElementById('voice-remote-audio');
         if (!audioEl) {
             audioEl = document.createElement('audio');
@@ -2245,20 +2256,21 @@ function setupVoicePeerConnection(isInitiator) {
             audioEl.style.display = 'none';
             document.body.appendChild(audioEl);
         }
-        audioEl.srcObject = e.streams[0];
-        setupRemoteLevelAnalyser(e.streams[0]);
-    };
+        audioEl.srcObject = remoteStream;
+        // Some mobile browsers hold back autoplay even for a muted-by-default
+        // <audio> el created outside a direct user gesture chain; explicitly
+        // kick playback so "connected but silent" can't happen here.
+        const p = audioEl.play();
+        if (p && p.catch) p.catch(() => {});
+        setupRemoteLevelAnalyser(remoteStream);
+        if (voiceConnectTimer) { clearTimeout(voiceConnectTimer); voiceConnectTimer = null; }
+    });
 
-    voicePC.onconnectionstatechange = () => {
-        if (!voicePC) return;
-        if (voicePC.connectionState === 'connected' && voiceConnectTimer) {
-            clearTimeout(voiceConnectTimer);
-            voiceConnectTimer = null;
-        }
-        if (voicePC.connectionState === 'failed' || voicePC.connectionState === 'closed') {
-            if (voiceInCall) endVoiceCallLocal(false);
-        }
-    };
+    call.on('close', () => { if (voiceInCall) endVoiceCallLocal(false); });
+    call.on('error', e => {
+        console.error('Voice call error:', e);
+        if (voiceInCall) endVoiceCallLocal(false);
+    });
 
     // Previously a call that never actually connected (e.g. both TURN
     // relays unreachable on a restrictive network) just sat there — the mic
@@ -2267,104 +2279,12 @@ function setupVoicePeerConnection(isInitiator) {
     if (voiceConnectTimer) clearTimeout(voiceConnectTimer);
     voiceConnectTimer = setTimeout(() => {
         voiceConnectTimer = null;
-        if (voicePC && voicePC.connectionState !== 'connected' && voiceInCall) {
+        const audioEl = document.getElementById('voice-remote-audio');
+        if (voiceInCall && (!audioEl || !audioEl.srcObject)) {
             toast("Call couldn't connect. This can happen on some networks — try a different network or Wi-Fi.", 6000);
             endVoiceCallLocal(true);
         }
     }, 20000);
-
-    if (isInitiator) {
-        voicePC.onnegotiationneeded = async () => {
-            try {
-                voiceMakingOffer = true;
-                const offer = await voicePC.createOffer();
-                await voicePC.setLocalDescription(offer);
-                safeSend({ type: 'voice_signal', kind: 'offer', sdp: voicePC.localDescription });
-            } catch (e) { console.error('Voice offer failed:', e); }
-            finally { voiceMakingOffer = false; }
-        };
-    }
-}
-
-// Any ICE candidate that arrives before we have a peer connection AND a
-// remote description set on it can't be applied yet — addIceCandidate()
-// throws if called too early. Previously those candidates were just dropped
-// ("benign", the old comment said) which isn't true: on networks that need
-// the TURN relay candidate (often the only one that actually works), losing
-// it means the call can never connect even though nothing looks wrong to the
-// user. Queue them instead and flush once the remote description lands.
-async function flushVoicePendingIce() {
-    if (!voicePC || !voicePC.remoteDescription) return;
-    const queued = voicePendingIce;
-    voicePendingIce = [];
-    for (const candidate of queued) {
-        try { await voicePC.addIceCandidate(new RTCIceCandidate(candidate)); }
-        catch (e) { console.error('Queued voice ICE candidate failed:', e); }
-    }
-}
-
-async function handleVoiceSignal(data) {
-    if (data.kind === 'offer') {
-        // Simultaneous-start glare: both sides tapped "call" around the same
-        // time and each sent their own offer. Give the joiner ("polite" peer)
-        // priority — the host rolls back its own offer and accepts theirs
-        // instead of both sides colliding and the call never connecting.
-        const collision = voiceInCall && voicePC && (voiceMakingOffer || voicePC.signalingState !== 'stable');
-        const polite = !amHost;
-        if (collision && !polite) return; // impolite side ignores the incoming offer, waits for its own to win
-        if (collision && polite) {
-            try { await voicePC.setLocalDescription({ type: 'rollback' }); } catch (e) {}
-        }
-        // Incoming call offer — mirror the caller's state locally and answer.
-        if (!voiceInCall) {
-            const myCallAttempt = ++voiceCallId;
-            let stream;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            } catch (e) {
-                console.error('Mic permission denied or unavailable:', e);
-                toast('Opponent started a voice call, but mic access failed.');
-                return;
-            }
-            if (myCallAttempt !== voiceCallId || voiceInCall) {
-                stream.getTracks().forEach(t => t.stop());
-                return;
-            }
-            localAudioStream = stream;
-            voiceInCall = true;
-            voiceMuted = false;
-            setVoiceButtonState();
-            setupVoicePeerConnection(false);
-            startVoiceLevelMonitor();
-            toast('Voice call connected.');
-        }
-        try {
-            await voicePC.setRemoteDescription(new RTCSessionDescription(data.sdp));
-            await flushVoicePendingIce();
-            const answer = await voicePC.createAnswer();
-            await voicePC.setLocalDescription(answer);
-            safeSend({ type: 'voice_signal', kind: 'answer', sdp: voicePC.localDescription });
-        } catch (e) { console.error('Voice answer failed:', e); }
-    } else if (data.kind === 'answer') {
-        if (!voicePC) return;
-        try {
-            await voicePC.setRemoteDescription(new RTCSessionDescription(data.sdp));
-            await flushVoicePendingIce();
-        }
-        catch (e) { console.error('Voice setRemoteDescription (answer) failed:', e); }
-    } else if (data.kind === 'ice') {
-        if (!voicePC || !voicePC.remoteDescription) {
-            // Remote description isn't set yet (still waiting on mic
-            // permission, still negotiating, etc.) — hold onto it.
-            voicePendingIce.push(data.candidate);
-            return;
-        }
-        try { await voicePC.addIceCandidate(new RTCIceCandidate(data.candidate)); }
-        catch (e) { console.error('Voice ICE candidate failed:', e); }
-    } else if (data.kind === 'hangup') {
-        endVoiceCallLocal(false);
-        toast(oppName + ' left the call.');
-    }
 }
 
 function toggleVoiceMute() {
@@ -2376,7 +2296,6 @@ function toggleVoiceMute() {
 
 function endVoiceCall() {
     if (!voiceInCall) return;
-    safeSend({ type: 'voice_signal', kind: 'hangup' });
     endVoiceCallLocal(true);
     toast('Left the call.');
 }
@@ -2386,10 +2305,9 @@ function endVoiceCallLocal(silent) {
     voiceCallId++; // invalidate any in-flight getUserMedia()/negotiation from this call
     voiceInCall = false;
     voiceMuted = false;
-    voicePendingIce = [];
     if (voiceConnectTimer) { clearTimeout(voiceConnectTimer); voiceConnectTimer = null; }
     stopVoiceLevelMonitor();
-    if (voicePC) { try { voicePC.close(); } catch (e) {} voicePC = null; }
+    if (voiceMediaCall) { try { voiceMediaCall.close(); } catch (e) {} voiceMediaCall = null; }
     if (localAudioStream) { localAudioStream.getTracks().forEach(t => t.stop()); localAudioStream = null; }
     const audioEl = document.getElementById('voice-remote-audio');
     if (audioEl) { audioEl.srcObject = null; audioEl.remove(); }
@@ -2732,7 +2650,6 @@ function handleData(data) {
             case 'game':
                 if (GameControllers[data.game] && GameControllers[data.game].onData) GameControllers[data.game].onData(data.payload);
                 break;
-            case 'voice_signal': handleVoiceSignal(data); break;
             case 'music_signal': handleMusicSignal(data); break;
             case 'resync_hello':
                 // The other side just reconnected. Send them everything needed
