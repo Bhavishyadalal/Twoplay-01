@@ -1502,12 +1502,16 @@ a { color: var(--accent); }
 // ===================================================================
 // GAME REGISTRY
 // ===================================================================
+// usesClock/canTakebackGame are declarative capability flags read by
+// initGame()/updateActionButtons() instead of hardcoded per-key checks —
+// this lets dynamically loaded game modules (see GAME LOADER below)
+// declare their own capabilities without any edit to this file.
 const GAMES = {
-    chess:    { name: 'Chess',        icon: '♞', color: 'g-chess' },
-    ttt:      { name: 'Tic-Tac-Toe',  icon: '✕', color: 'g-ttt' },
-    c4:       { name: 'Connect 4',    icon: '🔴', color: 'g-c4' },
-    checkers: { name: 'Checkers',     icon: '⛃', color: 'g-chk' },
-    reversi:  { name: 'Reversi',      icon: '⬤', color: 'g-rev' }
+    chess:    { name: 'Chess',        icon: '♞', color: 'g-chess', usesClock: true,  canTakebackGame: true },
+    ttt:      { name: 'Tic-Tac-Toe',  icon: '✕', color: 'g-ttt',   usesClock: false, canTakebackGame: false },
+    c4:       { name: 'Connect 4',    icon: '🔴', color: 'g-c4',    usesClock: false, canTakebackGame: false },
+    checkers: { name: 'Checkers',     icon: '⛃', color: 'g-chk',   usesClock: false, canTakebackGame: true },
+    reversi:  { name: 'Reversi',      icon: '⬤', color: 'g-rev',   usesClock: false, canTakebackGame: true }
 };
 const GAME_ORDER = ['chess', 'ttt', 'c4', 'checkers', 'reversi'];
 
@@ -1516,6 +1520,7 @@ function buildGamePickGrid(containerId, onPick) {
     el.innerHTML = '';
     GAME_ORDER.forEach(key => {
         const g = GAMES[key];
+        if (!g) return;
         const card = document.createElement('button');
         card.className = 'game-pick-card';
         card.dataset.game = key;
@@ -1524,6 +1529,72 @@ function buildGamePickGrid(containerId, onPick) {
         el.appendChild(card);
     });
 }
+
+// ===================================================================
+// GAME LOADER — fetches games/manifest.json (written by the dashboard's
+// "Upload a game" flow) and dynamically registers each listed game
+// alongside the 5 built-in ones, before any picker grid is first built
+// or a room is joined. See GAME_MODULE_GUIDE.md for the module contract.
+// A module registers itself by calling window.registerGame(...) when its
+// <script> tag executes — see registerGame() below.
+// ===================================================================
+let gameLoaderPromise = null;
+function loadDynamicGames() {
+    if (gameLoaderPromise) return gameLoaderPromise;
+    gameLoaderPromise = fetch('games/manifest.json', { cache: 'no-store' })
+        .then(res => res.ok ? res.json() : [])
+        .catch(() => [])
+        .then(list => {
+            if (!Array.isArray(list) || !list.length) return;
+            const loads = list.map(entry => loadGameModule(entry).catch(e => {
+                console.error('Failed to load game module:', entry && entry.id, e);
+            }));
+            return Promise.all(loads);
+        });
+    return gameLoaderPromise;
+}
+function loadGameModule(entry) {
+    return new Promise((resolve, reject) => {
+        if (!entry || !entry.id || !entry.entry) { reject(new Error('Malformed manifest entry')); return; }
+        if (GAMES[entry.id]) { resolve(); return; } // already known (built-in or already loaded)
+        const script = document.createElement('script');
+        script.src = `games/${entry.id}/${entry.entry}`;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Script failed to load: ' + script.src));
+        document.body.appendChild(script);
+    });
+}
+
+// Called by a dynamically loaded game module's own script to register
+// itself into the same GAMES / GameControllers system the 5 built-in
+// games use. See GAME_MODULE_GUIDE.md for the exact contract a module
+// must satisfy before calling this.
+function registerGame(key, meta, controller) {
+    if (GAMES[key]) { console.warn('registerGame: key already registered, ignoring', key); return; }
+    GAMES[key] = {
+        name: meta.name, icon: meta.icon || '●', color: meta.color || 'g-dyn',
+        usesClock: !!meta.usesClock, canTakebackGame: !!meta.canTakeback
+    };
+    if (!GAME_ORDER.includes(key)) GAME_ORDER.push(key);
+    GameControllers[key] = controller;
+
+    // Every dynamic game renders into its own stage div inside the shared
+    // #game-stage mount point (built-in games have theirs hand-authored in
+    // the HTML; dynamic ones create it here so main.html never needs
+    // per-game markup edits).
+    if (!document.getElementById('stage-' + key)) {
+        const stage = document.createElement('div');
+        stage.id = 'stage-' + key;
+        stage.className = 'game-panel hidden';
+        if (typeof controller.mount === 'function') {
+            controller.mount(stage);
+        } else if (meta.stageHTML) {
+            stage.innerHTML = meta.stageHTML;
+        }
+        document.getElementById('game-stage').appendChild(stage);
+    }
+}
+window.registerGame = registerGame;
 
 // ===================================================================
 // CAT LOGO — tap-to-wink interaction on the header mascot badges.
@@ -2396,14 +2467,24 @@ let myDisplayName = '';
 document.getElementById('display-name-input').addEventListener('input', e => { myDisplayName = e.target.value.trim().slice(0, 18); });
 
 let hostPickedGame = 'chess';
-buildGamePickGrid('host-game-pick', (key, card, grid) => {
+function onHostGamePick(key, card, grid) {
     grid.querySelectorAll('.game-pick-card').forEach(c => c.classList.remove('active'));
     card.classList.add('active');
     hostPickedGame = key;
     document.getElementById('chess-options').classList.toggle('hidden', key !== 'chess');
-});
+}
+buildGamePickGrid('host-game-pick', onHostGamePick);
 document.querySelector('#host-game-pick .game-pick-card[data-game="chess"]').classList.add('active');
 document.getElementById('chess-options').classList.remove('hidden');
+// Rebuild once dynamic games (e.g. Ludo) finish loading, so they show up
+// in the host picker even though this initial build ran synchronously
+// before the async manifest fetch resolved. Re-mark whichever card was
+// already selected so the user's choice survives the rebuild.
+loadDynamicGames().then(() => {
+    buildGamePickGrid('host-game-pick', onHostGamePick);
+    const active = document.querySelector(`#host-game-pick .game-pick-card[data-game="${hostPickedGame}"]`);
+    if (active) active.classList.add('active');
+});
 
 let chosenMinutes = 5, chosenInc = 0;
 document.querySelectorAll('.time-opt').forEach(btn => {
@@ -2532,15 +2613,17 @@ function updateAvatars() {
 // GAME LIFECYCLE — swap the active game panel in/out
 // ===================================================================
 function initGame(key, resetState) {
-    Object.keys(GAMES).forEach(k => document.getElementById('stage-' + k).classList.add('hidden'));
-    document.getElementById('stage-' + key).classList.remove('hidden');
+    Object.keys(GAMES).forEach(k => { const el = document.getElementById('stage-' + k); if (el) el.classList.add('hidden'); });
+    const stageEl = document.getElementById('stage-' + key);
+    if (stageEl) stageEl.classList.remove('hidden');
     currentGame = key;
     gameEnded = false;
     updateAvatars();
 
-    const usesClock = key === 'chess';
+    const meta = GAMES[key] || {};
+    const usesClock = !!meta.usesClock;
     document.querySelectorAll('.player-clock').forEach(el => el.style.display = usesClock ? '' : 'none');
-    document.getElementById('takeback-btn').style.display = (key === 'chess' || key === 'checkers' || key === 'reversi') ? '' : 'none';
+    document.getElementById('takeback-btn').style.display = meta.canTakebackGame ? '' : 'none';
 
     if (!GameControllers[key]) { toast('That game isn\'t ready yet.'); return; }
     GameControllers[key].init(amHost || localMode, resetState !== false);
@@ -2685,7 +2768,7 @@ function handleData(data) {
                 initGame(currentGame, false);
                 updateSessionScoreUI();
                 updateClockDisplay();
-                if (currentGame === 'chess' && !noTimeLimit && !gameEnded) startClockIfNeeded();
+                if (GAMES[currentGame] && GAMES[currentGame].usesClock && !noTimeLimit && !gameEnded) startClockIfNeeded();
                 updateActionButtons();
                 setStatusLine();
                 break;
@@ -4538,8 +4621,12 @@ function updateMusicButtons() {
 // BOOT
 // ===================================================================
 setMyIdDisplay('connecting…', true);
-initPeer(0);
+// Dynamic games load first (or fail silently/fast — see loadDynamicGames)
+// so every picker grid built afterward, and any room joined afterward,
+// already knows about them. This never blocks connecting to a peer for
+// more than a beat — a slow/failed manifest fetch just resolves to "no
+// extra games" and initPeer still runs.
+loadDynamicGames().finally(() => initPeer(0));
 </script>
 
 </html>
-
