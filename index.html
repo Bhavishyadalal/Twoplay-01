@@ -2138,6 +2138,8 @@ let localAudioStream = null;
 let voiceInCall = false;
 let voiceMuted = false;
 let voiceMakingOffer = false; // guards against signaling glare (both sides offering at once)
+let voicePendingIce = [];     // ICE candidates that arrived before we had a remote description to attach them to
+let voiceCallId = 0;          // bumped on every setup/teardown so stale async callbacks (mic prompt, negotiation) can detect they're for a dead call
 
 let voiceLevelInterval = null;
 let localAnalyser = null, remoteAnalyser = null;
@@ -2186,13 +2188,24 @@ function toggleVoiceCall() {
 async function startVoiceCall() {
     if (voiceInCall) return;
     if (!conn || !conn.open) { toast('Not connected to your opponent yet.'); return; }
+    const myCallAttempt = ++voiceCallId;
+    let stream;
     try {
-        localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
         console.error('Mic permission denied or unavailable:', e);
         toast("Couldn't access your microphone.");
         return;
     }
+    // The mic prompt above can take a while (or the user can meanwhile cancel,
+    // or the opponent's own offer can arrive and set up the call for us). If
+    // this attempt is no longer the current one, or we're already in a call,
+    // don't clobber it — just release this now-unneeded stream.
+    if (myCallAttempt !== voiceCallId || voiceInCall) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
+    }
+    localAudioStream = stream;
     voiceInCall = true;
     voiceMuted = false;
     setVoiceButtonState();
@@ -2204,6 +2217,7 @@ async function startVoiceCall() {
 function setupVoicePeerConnection(isInitiator) {
     if (voicePC) { try { voicePC.close(); } catch (e) {} }
     voicePC = new RTCPeerConnection(VOICE_ICE_CONFIG);
+    voicePendingIce = [];
 
     if (localAudioStream) {
         localAudioStream.getTracks().forEach(track => voicePC.addTrack(track, localAudioStream));
@@ -2246,17 +2260,51 @@ function setupVoicePeerConnection(isInitiator) {
     }
 }
 
+// Any ICE candidate that arrives before we have a peer connection AND a
+// remote description set on it can't be applied yet — addIceCandidate()
+// throws if called too early. Previously those candidates were just dropped
+// ("benign", the old comment said) which isn't true: on networks that need
+// the TURN relay candidate (often the only one that actually works), losing
+// it means the call can never connect even though nothing looks wrong to the
+// user. Queue them instead and flush once the remote description lands.
+async function flushVoicePendingIce() {
+    if (!voicePC || !voicePC.remoteDescription) return;
+    const queued = voicePendingIce;
+    voicePendingIce = [];
+    for (const candidate of queued) {
+        try { await voicePC.addIceCandidate(new RTCIceCandidate(candidate)); }
+        catch (e) { console.error('Queued voice ICE candidate failed:', e); }
+    }
+}
+
 async function handleVoiceSignal(data) {
     if (data.kind === 'offer') {
+        // Simultaneous-start glare: both sides tapped "call" around the same
+        // time and each sent their own offer. Give the joiner ("polite" peer)
+        // priority — the host rolls back its own offer and accepts theirs
+        // instead of both sides colliding and the call never connecting.
+        const collision = voiceInCall && voicePC && (voiceMakingOffer || voicePC.signalingState !== 'stable');
+        const polite = !amHost;
+        if (collision && !polite) return; // impolite side ignores the incoming offer, waits for its own to win
+        if (collision && polite) {
+            try { await voicePC.setLocalDescription({ type: 'rollback' }); } catch (e) {}
+        }
         // Incoming call offer — mirror the caller's state locally and answer.
         if (!voiceInCall) {
+            const myCallAttempt = ++voiceCallId;
+            let stream;
             try {
-                localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             } catch (e) {
                 console.error('Mic permission denied or unavailable:', e);
                 toast('Opponent started a voice call, but mic access failed.');
                 return;
             }
+            if (myCallAttempt !== voiceCallId || voiceInCall) {
+                stream.getTracks().forEach(t => t.stop());
+                return;
+            }
+            localAudioStream = stream;
             voiceInCall = true;
             voiceMuted = false;
             setVoiceButtonState();
@@ -2266,18 +2314,27 @@ async function handleVoiceSignal(data) {
         }
         try {
             await voicePC.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            await flushVoicePendingIce();
             const answer = await voicePC.createAnswer();
             await voicePC.setLocalDescription(answer);
             safeSend({ type: 'voice_signal', kind: 'answer', sdp: voicePC.localDescription });
         } catch (e) { console.error('Voice answer failed:', e); }
     } else if (data.kind === 'answer') {
         if (!voicePC) return;
-        try { await voicePC.setRemoteDescription(new RTCSessionDescription(data.sdp)); }
+        try {
+            await voicePC.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            await flushVoicePendingIce();
+        }
         catch (e) { console.error('Voice setRemoteDescription (answer) failed:', e); }
     } else if (data.kind === 'ice') {
-        if (!voicePC) return;
+        if (!voicePC || !voicePC.remoteDescription) {
+            // Remote description isn't set yet (still waiting on mic
+            // permission, still negotiating, etc.) — hold onto it.
+            voicePendingIce.push(data.candidate);
+            return;
+        }
         try { await voicePC.addIceCandidate(new RTCIceCandidate(data.candidate)); }
-        catch (e) { /* benign if it arrives before remote description is set */ }
+        catch (e) { console.error('Voice ICE candidate failed:', e); }
     } else if (data.kind === 'hangup') {
         endVoiceCallLocal(false);
         toast(oppName + ' left the call.');
@@ -2300,8 +2357,10 @@ function endVoiceCall() {
 
 // silent = don't toast here (caller already toasted, or the caller left first)
 function endVoiceCallLocal(silent) {
+    voiceCallId++; // invalidate any in-flight getUserMedia()/negotiation from this call
     voiceInCall = false;
     voiceMuted = false;
+    voicePendingIce = [];
     stopVoiceLevelMonitor();
     if (voicePC) { try { voicePC.close(); } catch (e) {} voicePC = null; }
     if (localAudioStream) { localAudioStream.getTracks().forEach(t => t.stop()); localAudioStream = null; }
