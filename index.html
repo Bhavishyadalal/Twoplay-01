@@ -930,34 +930,33 @@ a { color: var(--accent); }
    container and buttons stop spilling outside the rounded border.
    IMPORTANT: #app is a centered shell capped at max-width:560px (see
    `#app { max-width: 560px }` above) — that cap holds no matter how wide
-   the browser window is, so a media query keyed to the *viewport* (e.g.
-   max-width:700px) is wrong: on a wide desktop window the viewport query
-   never matches, yet the header is still squeezed into that same 560px
-   box. With the ping pill, status pill (which can grow to fit text like
-   "8ms · direct"), and 5 icon buttons all in one unshrinkable row, that
-   box is consistently too narrow to fit everything — this is a desktop
-   bug just as much as a mobile one. So this breakpoint is set well above
-   the shell's own max width (960px) to guarantee it always applies
-   whenever the shell is at or near its capped size, on any device. */
-@media (max-width: 960px), (pointer: coarse) {
-    .header-more-btn { display: inline-flex; }
-    .header-actions {
-        display: none;
-        position: absolute; top: calc(100% + 8px); right: 0;
-        flex-direction: column; align-items: stretch; gap: 4px;
-        padding: 8px; min-width: 168px;
-        background: var(--surface); border: 2px solid var(--border);
-        border-radius: var(--blob-md); box-shadow: var(--shadow-lift);
-        z-index: 20;
-    }
-    .header-actions.open { display: flex; }
-    .header-actions .icon-btn {
-        width: 100%; height: auto; flex-direction: row; justify-content: flex-start;
-        padding: 9px 10px; font-size: 13px; font-weight: 700; color: var(--text-dim);
-    }
-    .header-actions .icon-btn .icon-svg { margin-right: 10px; flex-shrink: 0; }
-    .header-actions .icon-btn::after { content: attr(title); }
+   the browser window is. A *viewport* media query (whether 700px or
+   960px) is the wrong signal here: a normal desktop monitor is often
+   1280–1920px wide, so the query never matches — yet the header is still
+   squeezed into that same fixed 560px box underneath, which is too
+   narrow to fit the ping pill, the status pill (which grows for text
+   like "8ms · direct"), and 5 icon buttons all in one unshrinkable row
+   on ANY device, desktop included. So instead of guessing a viewport
+   width, the collapsed "more menu" layout is now unconditional — it
+   always applies, regardless of viewport or pointer type, because the
+   560px shell it lives in never has enough room for the full icon row. */
+.header-more-btn { display: inline-flex; }
+.header-actions {
+    display: none;
+    position: absolute; top: calc(100% + 8px); right: 0;
+    flex-direction: column; align-items: stretch; gap: 4px;
+    padding: 8px; min-width: 168px;
+    background: var(--surface); border: 2px solid var(--border);
+    border-radius: var(--blob-md); box-shadow: var(--shadow-lift);
+    z-index: 20;
 }
+.header-actions.open { display: flex; }
+.header-actions .icon-btn {
+    width: 100%; height: auto; flex-direction: row; justify-content: flex-start;
+    padding: 9px 10px; font-size: 13px; font-weight: 700; color: var(--text-dim);
+}
+.header-actions .icon-btn .icon-svg { margin-right: 10px; flex-shrink: 0; }
+.header-actions .icon-btn::after { content: attr(title); }
 /* Below ~380px even the collapsed row (logo + status pill + more button)
    can get tight — let the room code drop and tighten side padding so the
    pill and buttons keep their shape instead of being squeezed. */
