@@ -871,9 +871,8 @@ a { color: var(--accent); }
 /* ---- music icon states ---- */
 #music-btn-game.playing, #music-btn-landing.playing { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
 .icon-music-off.hidden, .icon-music-on.hidden { display: none; }
-.music-btn-landing { position: fixed; top: 18px; right: 18px; z-index: 30; touch-action: none; }
+.music-btn-landing { position: fixed; top: 18px; right: 18px; z-index: 30; }
 @media (max-width: 480px) { .music-btn-landing { top: 12px; right: 12px; } }
-.music-btn-landing.dragging { transition: none; box-shadow: 0 6px 18px rgba(43,36,64,0.25); }
 .music-btn-landing.hidden { display: none; }
 
 /* ---- music picker ---- */
@@ -3063,7 +3062,7 @@ function getMusicEl() {
     musicEl = document.createElement('audio');
     musicEl.id = 'cozy-music-audio';
     musicEl.loop = true;
-    musicEl.preload = 'none';
+    musicEl.preload = 'metadata';
     document.body.appendChild(musicEl);
     musicEl.addEventListener('error', () => {
         if (musicIsPlaying) {
@@ -3172,22 +3171,50 @@ function buildMusicTrackList() {
     });
 }
 
+let musicLoadPending = false;
 function playMusicTrack(file) {
     const el = getMusicEl();
-    if (musicCurrentFile !== file) {
+    const isNewTrack = musicCurrentFile !== file;
+    if (isNewTrack) {
+        if (musicLoadPending) return; // already waiting on a load for this switch
+        musicLoadPending = true;
         musicCurrentFile = file;
         el.src = file;
-        el.load();
     }
-    el.play().then(() => {
-        musicIsPlaying = true;
-        saveMusicPrefs();
-        updateMusicButtons();
-        buildMusicTrackList();
-    }).catch(e => {
-        console.error('Music playback failed:', e);
-        toast("Couldn't play that track.");
-    });
+
+    const attemptPlay = () => {
+        el.play().then(() => {
+            musicIsPlaying = true;
+            saveMusicPrefs();
+            updateMusicButtons();
+            buildMusicTrackList();
+        }).catch(e => {
+            console.error('Music playback failed:', e);
+            toast("Couldn't play that track.");
+        });
+    };
+
+    if (isNewTrack && el.readyState < 2) {
+        // Source just changed and isn't ready yet — wait for it before calling play(),
+        // otherwise the browser can reject play() mid-load (common on slow connections).
+        const onReady = () => {
+            el.removeEventListener('canplay', onReady);
+            el.removeEventListener('error', onLoadError);
+            musicLoadPending = false;
+            attemptPlay();
+        };
+        const onLoadError = () => {
+            el.removeEventListener('canplay', onReady);
+            el.removeEventListener('error', onLoadError);
+            musicLoadPending = false;
+            toast("Couldn't play that track.");
+        };
+        el.addEventListener('canplay', onReady, { once: true });
+        el.addEventListener('error', onLoadError, { once: true });
+    } else {
+        musicLoadPending = false;
+        attemptPlay();
+    }
 }
 
 function stopMusic() {
@@ -3208,105 +3235,7 @@ function updateMusicButtons() {
     });
 }
 
-// ---- Floating music button: draggable, remembers where it was dropped ----
-(function initDraggableMusicButton() {
-    const btn = document.getElementById('music-btn-landing');
-    if (!btn) return;
 
-    const STORAGE_KEY = 'twoplay_music_btn_pos';
-    const DRAG_THRESHOLD = 6; // px of movement before a tap becomes a drag
-    let dragging = false, moved = false, startX = 0, startY = 0, originLeft = 0, originTop = 0;
-
-    function applyPosition(left, top) {
-        const w = btn.offsetWidth || 44, h = btn.offsetHeight || 44;
-        const maxLeft = window.innerWidth - w - 6;
-        const maxTop = window.innerHeight - h - 6;
-        left = Math.min(Math.max(6, left), Math.max(6, maxLeft));
-        top = Math.min(Math.max(6, top), Math.max(6, maxTop));
-        btn.style.left = left + 'px';
-        btn.style.top = top + 'px';
-        btn.style.right = 'auto';
-    }
-
-    function loadSavedPosition() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) return;
-            const pos = JSON.parse(raw);
-            if (typeof pos.left === 'number' && typeof pos.top === 'number') {
-                applyPosition(pos.left, pos.top);
-            }
-        } catch (e) {}
-    }
-
-    function savePosition() {
-        try {
-            const rect = btn.getBoundingClientRect();
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: rect.left, top: rect.top }));
-        } catch (e) {}
-    }
-
-    function pointFromEvent(e) {
-        if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        return { x: e.clientX, y: e.clientY };
-    }
-
-    function onDragStart(e) {
-        const p = pointFromEvent(e);
-        const rect = btn.getBoundingClientRect();
-        dragging = true;
-        moved = false;
-        startX = p.x;
-        startY = p.y;
-        originLeft = rect.left;
-        originTop = rect.top;
-        btn.classList.add('dragging');
-        window.addEventListener('mousemove', onDragMove);
-        window.addEventListener('touchmove', onDragMove, { passive: false });
-        window.addEventListener('mouseup', onDragEnd);
-        window.addEventListener('touchend', onDragEnd);
-    }
-
-    function onDragMove(e) {
-        if (!dragging) return;
-        const p = pointFromEvent(e);
-        const dx = p.x - startX, dy = p.y - startY;
-        if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
-            moved = true;
-            if (e.cancelable) e.preventDefault();
-            applyPosition(originLeft + dx, originTop + dy);
-        }
-    }
-
-    function onDragEnd() {
-        if (!dragging) return;
-        dragging = false;
-        btn.classList.remove('dragging');
-        window.removeEventListener('mousemove', onDragMove);
-        window.removeEventListener('touchmove', onDragMove);
-        window.removeEventListener('mouseup', onDragEnd);
-        window.removeEventListener('touchend', onDragEnd);
-        if (moved) {
-            savePosition();
-            // swallow the click that would otherwise fire after a drag
-            btn.dataset.suppressClick = '1';
-            setTimeout(() => { delete btn.dataset.suppressClick; }, 0);
-        }
-    }
-
-    btn.addEventListener('mousedown', onDragStart);
-    btn.addEventListener('touchstart', onDragStart, { passive: true });
-    btn.addEventListener('click', (e) => {
-        if (btn.dataset.suppressClick) { e.preventDefault(); e.stopImmediatePropagation(); }
-    }, true);
-
-    window.addEventListener('resize', () => {
-        const rect = btn.getBoundingClientRect();
-        applyPosition(rect.left, rect.top);
-    });
-
-    loadSavedPosition();
-})();
 
 // ===================================================================
 // GAME: CHESS (High-Performance Hardware-Accelerated Engine & Board)
