@@ -55,11 +55,6 @@
     "addedAt": "2026-08-22T19:47:27.537Z"
   },
   {
-    "file": "58.-home.mp3",
-    "title": "58. Home",
-    "addedAt": "2026-08-22T19:47:27.537Z"
-  },
-  {
     "file": "59.-toutatis.mp3",
     "title": "59. Toutatis",
     "addedAt": "2026-08-22T19:47:27.537Z"
@@ -132,5 +127,11 @@
     "title": "55. I Ll Meet You At The Station",
     "addedAt": "2026-08-22T19:47:27.537Z",
     "duration": 146.146395
+  },
+  {
+    "file": "58.-home.mp3",
+    "title": "58. Home",
+    "addedAt": "2026-08-22T19:47:27.537Z",
+    "duration": 140.759365
   }
 ]
