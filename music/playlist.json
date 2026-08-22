@@ -136,12 +136,6 @@
     "duration": 148.035906
   },
   {
-    "file": "27.-fuji.mp3",
-    "title": "27. Fuji",
-    "addedAt": "2026-08-22T19:47:27.537Z",
-    "duration": 165.140317
-  },
-  {
     "file": "14.-blue-sky.mp3",
     "title": "14. Blue Sky",
     "addedAt": "2026-08-22T20:14:00.917Z",
@@ -152,5 +146,11 @@
     "title": "42. Innocent",
     "addedAt": "2026-08-22T19:47:27.537Z",
     "duration": 133.468299
+  },
+  {
+    "file": "27.-fuji.mp3",
+    "title": "27. Fuji",
+    "addedAt": "2026-08-22T19:47:27.537Z",
+    "duration": 165.140317
   }
 ]
