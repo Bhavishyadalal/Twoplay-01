@@ -1,10 +1,5 @@
 [
   {
-    "file": "26.-far-away.mp3",
-    "title": "26. Far Away",
-    "addedAt": "2026-08-22T19:47:27.537Z"
-  },
-  {
     "file": "27.-fuji.mp3",
     "title": "27. Fuji",
     "addedAt": "2026-08-22T19:47:27.537Z"
@@ -139,5 +134,11 @@
     "title": "Tunetank Cozy Lofi Beat 349864",
     "addedAt": "2026-08-22T19:47:27.537Z",
     "duration": 158.432625
+  },
+  {
+    "file": "26.-far-away.mp3",
+    "title": "26. Far Away",
+    "addedAt": "2026-08-22T19:47:27.537Z",
+    "duration": 162.446803
   }
 ]
