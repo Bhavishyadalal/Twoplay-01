@@ -816,8 +816,8 @@ a { color: var(--accent); }
 .brand-mini { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
 .brand-mini em { font-style: normal; color: var(--accent); }
 .mini-room-code { font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); }
-.header-right { display: flex; align-items: center; gap: 8px; position: relative; }
-.header-actions { display: flex; align-items: center; gap: 8px; }
+.header-right { display: flex; align-items: center; gap: 8px; position: relative; flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
+.header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
 .header-more-btn { display: none; position: relative; }
 .icon-btn { font-size: 18px; padding: 6px 8px; border-radius: var(--blob-sm); background: var(--surface-2); border: 2px solid var(--border); display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s, border-color 0.15s, transform 0.14s; }
 .icon-btn:active { transform: scale(0.92); }
@@ -920,10 +920,16 @@ a { color: var(--accent); }
     #game-stage { padding: 2px; }
     #app { padding: 0 6px 6px; }
     .players-row { padding: 4px 2px 8px; }
-
-    /* Header overflow fix: the 4 icon buttons move into a dropdown behind
-       a single "more" button so the header pill never grows wider than
-       the viewport and buttons stop spilling outside the rounded border. */
+}
+/* Header overflow fix: the row of icon buttons moves into a dropdown behind
+   a single "more" button so the header pill never grows wider than the
+   viewport and buttons stop spilling outside the rounded border. This used
+   to only trigger under 700px width, which missed touch tablets that are
+   wider than that but still too narrow (given the app's fixed 560px shell
+   plus padding) to fit every icon in one row — this now matches the
+   pointer:coarse condition used elsewhere on the page so those devices get
+   the same collapsed menu instead of overflowing buttons. */
+@media (max-width: 700px), (pointer: coarse) {
     .header-more-btn { display: inline-flex; }
     .header-actions {
         display: none;
@@ -1997,6 +2003,7 @@ function setupConnection(c) {
             // restore state on both ends.
             toast('Reconnected!');
             safeSend({ type: 'resync_hello', name: myDisplayName || null });
+            if (musicIsPlaying) broadcastMusicState();
             return;
         }
 
@@ -2026,6 +2033,7 @@ function setupConnection(c) {
         } else if (myDisplayName) {
             safeSend({ type: 'name', name: myDisplayName });
         }
+        if (musicIsPlaying) broadcastMusicState();
     });
     conn.on('close', handleConnClose);
     conn.on('error', err => console.error('Connection error:', err));
@@ -2706,6 +2714,7 @@ function handleData(data) {
                 if (GameControllers[data.game] && GameControllers[data.game].onData) GameControllers[data.game].onData(data.payload);
                 break;
             case 'voice_signal': handleVoiceSignal(data); break;
+            case 'music_signal': handleMusicSignal(data); break;
             case 'resync_hello':
                 // The other side just reconnected. Send them everything needed
                 // to restore the session without resetting anything on our end:
@@ -3230,24 +3239,37 @@ function buildMusicTrackList() {
     });
 }
 
-let musicLoadPending = false;
-function playMusicTrack(file) {
+// A monotonically increasing token, not a single shared boolean. The old
+// code used one `musicLoadPending` flag and just dropped any click that
+// arrived while a previous track was still loading — so picking a track
+// while an earlier pick hadn't finished buffering did nothing at all, with
+// no error and no feedback ("sometimes doesn't play"). With a token, a
+// newer pick always proceeds and simply invalidates the older in-flight
+// one instead of being silently swallowed by it.
+let musicLoadToken = 0;
+// fromRemote: true when this call is applying the opponent's broadcasted
+// choice rather than a local click — suppresses re-broadcasting it back.
+function playMusicTrack(file, fromRemote) {
     const el = getMusicEl();
-    const isNewTrack = musicCurrentFile !== file;
+    const isNewTrack = musicCurrentFile !== file || el.getAttribute('src') !== file;
+    const token = ++musicLoadToken;
+
     if (isNewTrack) {
-        if (musicLoadPending) return; // already waiting on a load for this switch
-        musicLoadPending = true;
         musicCurrentFile = file;
         el.src = file;
     }
 
     const attemptPlay = () => {
+        if (token !== musicLoadToken) return; // superseded by a newer pick while we were waiting
         el.play().then(() => {
+            if (token !== musicLoadToken) return;
             musicIsPlaying = true;
             saveMusicPrefs();
             updateMusicButtons();
             buildMusicTrackList();
+            if (!fromRemote) broadcastMusicState();
         }).catch(e => {
+            if (token !== musicLoadToken) return;
             console.error('Music playback failed:', e);
             toast("Couldn't play that track.");
         });
@@ -3259,29 +3281,43 @@ function playMusicTrack(file) {
         const onReady = () => {
             el.removeEventListener('canplay', onReady);
             el.removeEventListener('error', onLoadError);
-            musicLoadPending = false;
             attemptPlay();
         };
         const onLoadError = () => {
             el.removeEventListener('canplay', onReady);
             el.removeEventListener('error', onLoadError);
-            musicLoadPending = false;
+            if (token !== musicLoadToken) return;
             toast("Couldn't play that track.");
         };
         el.addEventListener('canplay', onReady, { once: true });
         el.addEventListener('error', onLoadError, { once: true });
     } else {
-        musicLoadPending = false;
         attemptPlay();
     }
 }
 
-function stopMusic() {
+function stopMusic(fromRemote) {
     if (musicEl) musicEl.pause();
     musicIsPlaying = false;
     saveMusicPrefs();
     updateMusicButtons();
     buildMusicTrackList();
+    if (!fromRemote) broadcastMusicState();
+}
+
+// ---- Sync cozy music between the two players over the game data channel ----
+// Both players' browsers already have the same music/ files at the same
+// relative URL (same deployment), so syncing just means telling the other
+// side which file to play (or to stop) — no audio itself crosses the wire.
+function broadcastMusicState() {
+    if (!conn || !conn.open) return;
+    safeSend(musicIsPlaying && musicCurrentFile
+        ? { type: 'music_signal', kind: 'play', file: musicCurrentFile }
+        : { type: 'music_signal', kind: 'stop' });
+}
+function handleMusicSignal(data) {
+    if (data.kind === 'play' && data.file) playMusicTrack(data.file, true);
+    else if (data.kind === 'stop') stopMusic(true);
 }
 
 function updateMusicButtons() {
