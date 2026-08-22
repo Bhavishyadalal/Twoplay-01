@@ -1,9 +1,5 @@
 [
   {
-    "file": "andriih-cozy-cozy-coffee-music-568234.mp3",
-    "title": "Cozy Coffee Music"
-  },
-  {
     "file": "mondamusic-cozy-chill-lounge-music-487318.mp3",
     "title": "Mondamusic Cozy",
     "addedAt": "2026-08-22T18:49:51.786Z",
@@ -14,5 +10,11 @@
     "title": "Tunetank Cozy Lofi",
     "addedAt": "2026-08-22T18:58:00.346Z",
     "duration": 158.432625
+  },
+  {
+    "file": "andriih-cozy-cozy-coffee-music-568234.mp3",
+    "title": "Cozy Coffee Music",
+    "addedAt": "2026-08-22T19:03:41.454Z",
+    "duration": 148.035906
   }
 ]
