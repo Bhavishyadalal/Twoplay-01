@@ -972,8 +972,15 @@ a { color: var(--accent); }
 }
 .wb-canvas-wrap {
     position: relative;
-    width: 100%;
+    /* Fixed, device-independent box — matches the pattern every other
+       board uses (chess/checkers/reversi all clamp to a max px size
+       instead of a fluid aspect-ratio) so the drawable area is the same
+       shape on phones, tablets, and desktop instead of stretching to
+       whatever the viewport happens to be. */
+    width: min(calc(100vw - 40px), 480px);
     aspect-ratio: 4 / 3;
+    max-height: 420px;
+    margin: 0 auto;
     border-radius: var(--blob-md);
     background: #FFFBFD;
     background-image:
@@ -4672,9 +4679,18 @@ function updateMusicButtons() {
         if (!canvas) canvas = document.getElementById('wb-canvas');
         if (!wrap) wrap = document.getElementById('wb-canvas-wrap');
         if (!canvas || !wrap) return false;
+        // Never reset the canvas backing store while a stroke is actively
+        // being drawn (locally or by the remote peer) — resizing the
+        // element mid-stroke clears the in-progress path and was the
+        // cause of stray connecting lines appearing on their own.
+        if (drawing || remoteStroke) return true;
         const rect = wrap.getBoundingClientRect();
         const w = rect.width || 320, h = rect.height || 240;
         const newDpr = Math.min(window.devicePixelRatio || 1, 3);
+        // Ignore sub-pixel jitter (mobile browser chrome show/hide, font
+        // loading reflow, etc.) so a ~1px layout wobble doesn't trigger a
+        // full canvas wipe+redraw — only react to a real size change.
+        if (Math.abs(w - cssW) < 1 && Math.abs(h - cssH) < 1 && ctx) return true;
         if (w !== cssW || h !== cssH || !ctx) {
             cssW = w; cssH = h; dpr = newDpr;
             canvas.width = Math.round(w * dpr);
@@ -4775,12 +4791,18 @@ function updateMusicButtons() {
         if (item.kind === 'start') {
             const p = { x: item.x, y: item.y };
             // Scale incoming point if the two canvases differ in CSS size
-            // (e.g. different window widths) so drawings still line up.
+            // (e.g. PC vs Android have different viewport widths) so
+            // drawings still line up correctly instead of landing in the
+            // wrong spot. The scale factors are stored on the stroke here
+            // and reused for every subsequent 'pt' in this same stroke —
+            // previously they were read but never actually saved, so
+            // remote points silently fell back to an unscaled 1:1 factor
+            // and drew in the wrong place whenever screen sizes differed.
             const sx = item.w ? cssW / item.w : 1;
             const sy = item.h ? cssH / item.h : 1;
             const sp = { x: p.x * sx, y: p.y * sy };
             remoteLast = sp;
-            remoteStroke = { points: [sp], color: item.color, size: item.size * Math.min(sx, sy), erase: !!item.erase };
+            remoteStroke = { points: [sp], color: item.color, size: item.size * Math.min(sx, sy), erase: !!item.erase, _sx: sx, _sy: sy };
             strokes.push(remoteStroke);
             paintStroke({ points: [sp], color: remoteStroke.color, size: remoteStroke.size, erase: remoteStroke.erase });
         } else if (item.kind === 'pt') {
@@ -4858,14 +4880,20 @@ function updateMusicButtons() {
         canvas.addEventListener('pointerleave', onPointerUp, { passive: false });
     }
 
+    // Debounced: ResizeObserver can fire many times in a burst (mobile
+    // browser chrome sliding in/out, keyboard open/close, orientation
+    // change settling) — collapsing those into one call, after a short
+    // quiet period, avoids repeated canvas resets fighting an active
+    // stroke or the remote-sync render.
+    let resizeSettleTimer = null;
     if (typeof ResizeObserver !== 'undefined') {
         const ro = new ResizeObserver(() => {
-            const stage = document.getElementById('stage-whiteboard');
-            if (stage && !stage.classList.contains('hidden')) {
-                const prevW = cssW, prevH = cssH;
-                ensureCanvas();
-                if (prevW && (prevW !== cssW || prevH !== cssH)) redrawAll();
-            }
+            if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
+            resizeSettleTimer = setTimeout(() => {
+                resizeSettleTimer = null;
+                const stage = document.getElementById('stage-whiteboard');
+                if (stage && !stage.classList.contains('hidden')) ensureCanvas();
+            }, 120);
         });
         window.addEventListener('DOMContentLoaded', () => {
             const w = document.getElementById('wb-canvas-wrap');
