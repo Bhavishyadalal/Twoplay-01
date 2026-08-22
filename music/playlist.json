@@ -40,11 +40,6 @@
     "addedAt": "2026-08-22T19:47:27.537Z"
   },
   {
-    "file": "43.-winter-shells.mp3",
-    "title": "43. Winter Shells",
-    "addedAt": "2026-08-22T19:47:27.537Z"
-  },
-  {
     "file": "54.-koshi.mp3",
     "title": "54. Koshi",
     "addedAt": "2026-08-22T19:47:27.537Z"
@@ -130,5 +125,11 @@
     "title": "44. Dover",
     "addedAt": "2026-08-22T19:47:27.537Z",
     "duration": 160.124807
+  },
+  {
+    "file": "43.-winter-shells.mp3",
+    "title": "43. Winter Shells",
+    "addedAt": "2026-08-22T19:47:27.537Z",
+    "duration": 186.363356
   }
 ]
