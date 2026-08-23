@@ -373,6 +373,8 @@
     --g-rev-dim: rgba(47,191,131,0.16);
     --g-wb: #FF8FC0;
     --g-wb-dim: rgba(255,143,192,0.18);
+    --g-yt: #FF4D6D;
+    --g-yt-dim: rgba(255,77,109,0.16);
 
     --font-display: 'Baloo 2', 'Fredoka', 'Arial Rounded MT Bold', sans-serif;
     --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -398,6 +400,66 @@
     src: local('Arial Rounded MT Bold'), local('Arial');
     font-display: swap;
 }
+
+/* ===================================================================
+   ROOM THEMES — swaps --bg and --accent (+derived --accent-dim) for
+   the in-game app shell only. Landing page is untouched, and each
+   theme keeps text/contrast in mind so buttons stay legible.
+   =================================================================== */
+/* Applied to <body> (not #app) so the --bg change also reaches body's
+   own background-color — #app is just a child div and never paints a
+   background of its own, so scoping these vars to #app alone would
+   recolor buttons/accents but leave the page background untouched. */
+body.room-theme-sunset  { --bg: #FFF3E9; --accent: #FF7A45; --accent-dim: rgba(255,122,69,0.16); }
+body.room-theme-mint    { --bg: #EAFBF3; --accent: #1FAE7A; --accent-dim: rgba(31,174,122,0.16); }
+body.room-theme-lavender{ --bg: #F4F0FF; --accent: #8A63F2; --accent-dim: rgba(138,99,242,0.16); }
+/* Midnight only swaps the page background and accent — it deliberately
+   leaves --text/--surface alone. Those vars are read by overlay cards
+   (.glass has a hardcoded white translucent background — see below) as
+   well as ordinary light-surface UI everywhere else in the app, so
+   flipping them to light-on-dark here would make white modal text
+   unreadable on a white modal background. Keeping the app's normal
+   light UI on a dark page background still reads as a clear reskin. */
+body.room-theme-midnight{ --bg: #232041; --accent: #7FA8FF; --accent-dim: rgba(127,168,255,0.20); }
+body.room-theme-sun     { --bg: #FFF9E3; --accent: #F2B705; --accent-dim: rgba(242,183,5,0.18); }
+body.room-theme-classic { }
+
+.room-theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 4px; }
+.room-theme-card { border: 2px solid var(--border); border-radius: var(--blob-sm); background: var(--surface-2); cursor: pointer; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: border-color 0.15s, transform 0.12s; }
+.room-theme-card:hover { transform: translateY(-2px); }
+.room-theme-card:active { transform: scale(0.96); }
+.room-theme-card.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.room-theme-swatch { width: 100%; height: 34px; border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06); }
+.room-theme-name { font-size: 10.5px; font-weight: 800; color: var(--text-dim); text-align: center; }
+.room-theme-card.active .room-theme-name { color: var(--accent); }
+
+/* ===================================================================
+   FLOATING REACTIONS
+   =================================================================== */
+.reaction-tray { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 4px 0 2px; }
+.reaction-tray button { font-size: 26px; line-height: 1; padding: 8px; border-radius: var(--blob-sm); background: var(--surface-2); border: 2px solid var(--border); transition: background 0.15s, transform 0.12s; }
+.reaction-tray button:hover { background: var(--surface-3); }
+.reaction-tray button:active { transform: scale(0.88); }
+
+/* Layer that floating reaction emoji rise through. Sits above the game
+   board but stops short of the action row / quick-chat row / chat
+   drawer at the bottom, and ignores pointer events so it never blocks
+   taps on anything underneath. */
+#reaction-layer { position: fixed; left: 0; right: 0; top: 0; bottom: 168px; z-index: 40; pointer-events: none; overflow: hidden; }
+.floating-reaction { position: absolute; bottom: 0; font-size: 34px; animation: floatReaction 2.6s ease-out forwards; will-change: transform, opacity; }
+@keyframes floatReaction {
+    0%   { transform: translateY(0) scale(0.5) rotate(0deg); opacity: 0; }
+    12%  { transform: translateY(-8vh) scale(1.1) rotate(-6deg); opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translateY(-62vh) scale(1) rotate(6deg); opacity: 0; }
+}
+
+/* ===================================================================
+   PASS-AND-PLAY TURN HANDOFF (local mode)
+   =================================================================== */
+.handoff-banner { display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; font-size: 13px; font-weight: 800; color: var(--accent); background: var(--accent-dim); border-radius: var(--blob-sm); padding: 9px 14px; margin: 0 4px 10px; animation: handoffPulse 1.6s ease-in-out infinite; }
+@keyframes handoffPulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-dim); } 50% { box-shadow: 0 0 0 6px transparent; } }
+.handoff-banner.hidden { display: none; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { color-scheme: light; height: 100%; touch-action: manipulation; }
@@ -745,6 +807,7 @@ a { color: var(--accent); }
 .game-pick-card[data-game="chess"] { --gc: var(--g-chess); --gc-dim: var(--g-chess-dim); }
 .game-pick-card[data-game="reversi"] { --gc: var(--g-rev); --gc-dim: var(--g-rev-dim); }
 .game-pick-card[data-game="whiteboard"] { --gc: var(--g-wb); --gc-dim: var(--g-wb-dim); }
+.game-pick-card[data-game="ytsync"] { --gc: var(--g-yt); --gc-dim: var(--g-yt-dim); }
 
 .time-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 6px; }
 .time-opt, .color-opt {
@@ -1051,6 +1114,177 @@ a { color: var(--accent); }
     .wb-swatch { width: 21px; height: 21px; }
     .wb-size-btn { width: 23px; height: 23px; }
 }
+
+/* ============================================================
+   WATCH TOGETHER — cute cinema-dashboard panel
+   ============================================================ */
+.yts-frame {
+    background: linear-gradient(165deg, #FFF2F3 0%, #FFE8EC 100%);
+    border-color: rgba(255,77,109,0.28);
+    display: flex; flex-direction: column;
+}
+.yts-screen {
+    position: relative;
+    width: min(calc(100vw - 40px), 480px);
+    aspect-ratio: 16 / 9;
+    margin: 0 auto;
+    border-radius: var(--blob-md);
+    background: #1A1522;
+    overflow: hidden;
+    box-shadow: var(--shadow-lift);
+    border: 2px solid rgba(43,36,64,0.14);
+}
+.yts-screen iframe, #yts-player { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.yts-empty {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; color: rgba(255,255,255,0.72); text-align: center; padding: 20px;
+    background:
+        radial-gradient(circle at 30% 20%, rgba(255,77,109,0.22), transparent 55%),
+        radial-gradient(circle at 75% 80%, rgba(160,108,255,0.18), transparent 55%);
+}
+.yts-empty-icon { font-size: 30px; animation: ytsFloat 3.6s ease-in-out infinite; }
+@keyframes ytsFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.yts-empty-text { font-size: 12px; font-weight: 700; max-width: 220px; line-height: 1.5; }
+.yts-stuck-hint {
+    position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+    background: rgba(26,21,34,0.92); color: #fff; font-size: 11px; font-weight: 700;
+    padding: 8px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; white-space: nowrap;
+}
+.yts-stuck-hint button { color: var(--g-yt); font-weight: 800; text-decoration: underline; }
+.yts-countdown {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(26,21,34,0.55); backdrop-filter: blur(2px);
+}
+.yts-countdown span {
+    font-family: var(--font-display); font-size: 54px; font-weight: 700; color: #fff;
+    animation: pickBounce 0.3s ease-out;
+}
+.yts-now {
+    display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 12px;
+    background: var(--surface); border: 2px solid var(--g-yt-dim); border-radius: var(--blob-sm);
+    box-shadow: 0 3px 0 rgba(43,36,64,0.06);
+    /* .game-panel is align-items:center, so flex children size to their own
+       content by default instead of stretching to the panel width — without
+       an explicit width here, a long video title just grows the row past
+       the screen edge instead of being ellipsized. */
+    width: 100%; max-width: 100%; box-sizing: border-box;
+}
+.yts-now-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g-yt); flex-shrink: 0; box-shadow: 0 0 0 3px var(--g-yt-dim); }
+.video-playing .yts-now-dot { animation: ytsPulse 1.6s ease-in-out infinite; }
+@keyframes ytsPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.yts-now-title { flex: 1; min-width: 0; font-size: 12px; font-weight: 800; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yts-controls {
+    display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 10px;
+    border-radius: var(--blob-sm); background: var(--surface); border: 2px solid var(--border);
+    box-shadow: 0 3px 0 rgba(43,36,64,0.06);
+    width: 100%; max-width: 100%; box-sizing: border-box;
+}
+.yts-ctrl-btn {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: var(--surface-2); border: 2px solid var(--border); color: var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.14s, background 0.15s, border-color 0.15s;
+}
+.yts-ctrl-btn:hover { transform: translateY(-1px); border-color: var(--g-yt); color: var(--g-yt); }
+.yts-ctrl-btn:active { transform: translateY(1px) scale(0.95); }
+.yts-ctrl-btn.primary { width: 42px; height: 42px; background: var(--g-yt); color: #fff; border-color: var(--g-yt); box-shadow: 0 3px 0 #C22F49; }
+.yts-ctrl-btn.primary:hover { color: #fff; filter: brightness(1.05); }
+.yts-ctrl-btn.primary:active { box-shadow: 0 1px 0 #C22F49; transform: translateY(2px); }
+.yts-ctrl-spacer { flex: 1; }
+.yts-ctrl-btn.together {
+    width: auto; border-radius: 20px; padding: 0 12px; gap: 6px; font-size: 11px; font-weight: 800;
+    background: var(--g-yt-dim); border-color: var(--g-yt-dim); color: var(--g-yt);
+}
+.yts-ctrl-btn.together:hover { border-color: var(--g-yt); }
+.yts-together-icon { font-size: 13px; }
+.yts-add-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; width: 100%; max-width: 100%; box-sizing: border-box; }
+.yts-url-input {
+    flex: 1; min-width: 0; padding: 10px 14px; border-radius: 20px; border: 2px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: 12px; font-weight: 700; font-family: var(--font-body);
+}
+.yts-url-input:focus { outline: none; border-color: var(--g-yt); }
+.yts-url-input::placeholder { color: var(--text-faint); font-weight: 600; }
+.yts-add-btn {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: var(--g-yt); color: #fff; border: 2px solid var(--g-yt);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 0 #C22F49; transition: transform 0.12s, filter 0.15s;
+}
+.yts-add-btn:hover { filter: brightness(1.05); }
+.yts-add-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #C22F49; }
+.yts-add-btn.ghost { background: var(--surface-2); color: var(--text-dim); border-color: var(--border); box-shadow: 0 3px 0 rgba(43,36,64,0.10); }
+.yts-add-btn.ghost:active { box-shadow: 0 1px 0 rgba(43,36,64,0.10); }
+.yts-queue-wrap {
+    margin-top: 12px;
+    /* Same family of bug as .yts-now/.yts-controls/.yts-add-row: the
+       parent .game-panel is align-items:center, so any child here that
+       doesn't claim an explicit width sizes to its own content instead
+       of the panel width — a long queued title then pushes the whole
+       row off-screen instead of wrapping/ellipsizing. */
+    width: 100%; max-width: 100%; box-sizing: border-box;
+}
+.yts-queue-head {
+    display: flex; align-items: center; justify-content: space-between; padding: 0 4px 6px;
+    font-size: 11px; font-weight: 800; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em;
+}
+.yts-queue-count {
+    background: var(--g-yt-dim); color: var(--g-yt); border-radius: 10px; padding: 1px 7px; font-size: 10px;
+}
+.yts-queue { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; width: 100%; box-sizing: border-box; }
+.yts-queue-empty { text-align: center; font-size: 11px; color: var(--text-faint); font-weight: 700; padding: 16px 8px; }
+.yts-queue-item {
+    display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: var(--blob-sm);
+    background: var(--surface); border: 2px solid var(--border-soft); box-shadow: 0 2px 0 rgba(43,36,64,0.06);
+    transition: border-color 0.14s, transform 0.12s;
+    width: 100%; max-width: 100%; box-sizing: border-box;
+}
+.yts-queue-item:hover { border-color: var(--g-yt-dim); }
+.yts-queue-item img { width: 54px; height: 38px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--surface-3); }
+.yts-queue-item-meta { flex: 1; min-width: 0; }
+.yts-queue-item-title { font-size: 11.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yts-queue-item-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.yts-queue-item-btn {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center; color: var(--text-dim);
+    transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.yts-queue-item-btn:hover.play { background: var(--g-yt-dim); border-color: var(--g-yt); color: var(--g-yt); }
+.yts-queue-item-btn:hover.remove { background: var(--danger-dim); border-color: var(--danger); color: var(--danger); }
+@media (max-width: 420px) {
+    .yts-controls { gap: 6px; padding: 7px 8px; }
+    .yts-ctrl-btn { width: 32px; height: 32px; }
+    .yts-ctrl-btn.primary { width: 38px; height: 38px; }
+    .yts-ctrl-btn.together span.yts-together-icon { display: none; }
+}
+
+/* Search + pick popups reuse .overlay-card, plus a few local bits */
+.yts-search-card { max-width: 420px; }
+.yts-search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.yts-search-row input {
+    flex: 1; min-width: 0; padding: 10px 14px; border-radius: 20px; border: 2px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 700; font-family: var(--font-body);
+}
+.yts-search-row input:focus { outline: none; border-color: var(--g-yt); }
+.btn-icon-round {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    background: var(--g-yt); color: #fff; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 0 #C22F49; transition: transform 0.12s, filter 0.15s;
+}
+.btn-icon-round:active { transform: translateY(2px); box-shadow: 0 1px 0 #C22F49; }
+.yts-search-status { font-size: 12px; font-weight: 700; color: var(--text-faint); text-align: center; padding: 4px 0 8px; min-height: 0; }
+.yts-search-results { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; margin-bottom: 12px; }
+.yts-search-result-card {
+    display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: var(--blob-sm);
+    background: var(--surface-2); border: 2px solid var(--border); text-align: left;
+    transition: border-color 0.14s, transform 0.12s;
+}
+.yts-search-result-card:hover { border-color: var(--g-yt); transform: translateY(-1px); }
+.yts-search-result-card:active { transform: translateY(1px); }
+.yts-search-result-card img { width: 64px; height: 46px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--surface-3); }
+.yts-sr-title { font-size: 12px; font-weight: 800; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.yts-sr-channel { font-size: 10.5px; color: var(--text-faint); font-weight: 700; margin-top: 2px; }
+.yts-pick-thumb { width: 100%; border-radius: var(--blob-sm); margin-bottom: 12px; aspect-ratio: 16/9; object-fit: cover; background: var(--surface-3); }
+.yts-pick-title { font-size: 16px; }
 
 .action-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 4px 10px; padding: 8px; border-radius: var(--blob-md); background: var(--surface); border: 2px solid var(--border-soft); }
 .action-btn { padding: 11px 0; border-radius: var(--blob-sm); background: var(--surface-2); border: 2px solid var(--border); font-size: 12px; font-weight: 800; color: var(--text-dim); display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 0 rgba(43,36,64,0.08); transition: transform 0.12s, background 0.15s, border-color 0.15s, box-shadow 0.15s; }
@@ -1396,6 +1630,12 @@ a { color: var(--accent); }
                 <button class="icon-btn" id="theme-toggle-game" onclick="openThemePicker()" title="Board theme" aria-label="Board theme">
                     <svg class="icon-svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="1.3" fill="currentColor"/><circle cx="14.5" cy="9" r="1.1" fill="currentColor"/><circle cx="16" cy="13.5" r="1.2" fill="currentColor"/><circle cx="10.5" cy="15.5" r="1" fill="currentColor"/></svg>
                 </button>
+                <button class="icon-btn" id="room-theme-btn" onclick="openRoomThemePicker()" title="Room theme" aria-label="Room theme">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none"><path d="M4 20 20 4M4 4l16 16" stroke="currentColor" stroke-width="0" /><rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 15l4.5-5 3.5 4 2.5-3L20 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button class="icon-btn" id="reactions-btn" onclick="openReactionsPicker()" title="Reactions" aria-label="Reactions">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 14c1 1.2 2.1 1.8 3.5 1.8s2.5-.6 3.5-1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="9" cy="10" r="1.1" fill="currentColor"/><circle cx="15" cy="10" r="1.1" fill="currentColor"/></svg>
+                </button>
                 <button class="icon-btn" id="sound-toggle-game" onclick="toggleSound()" title="Toggle sound" aria-label="Toggle sound">
                     <svg class="icon-svg icon-sound-on" viewBox="0 0 24 24" fill="none"><path d="M4 9.5v5h3.2L12 18V6L7.2 9.5H4Z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.7 7.7 0 0 1 0 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                     <svg class="icon-svg icon-sound-off hidden" viewBox="0 0 24 24" fill="none"><path d="M4 9.5v5h3.2L12 18V6L7.2 9.5H4Z" fill="currentColor"/><path d="M15.5 9.5 19.5 14.5M19.5 9.5 15.5 14.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
@@ -1407,6 +1647,9 @@ a { color: var(--accent); }
                     <svg class="icon-svg icon-mic-off" viewBox="0 0 24 24" fill="none"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5V7a3.5 3.5 0 0 0-7 0v4.5A3.5 3.5 0 0 0 12 15Z" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                     <svg class="icon-svg icon-mic-on hidden" viewBox="0 0 24 24" fill="none"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5V7a3.5 3.5 0 0 0-7 0v4.5A3.5 3.5 0 0 0 12 15Z" fill="currentColor" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                     <svg class="icon-svg icon-mic-muted hidden" viewBox="0 0 24 24" fill="none"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5V7a3.5 3.5 0 0 0-7 0v4.5c0 .53.11 1.03.32 1.49" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6 11a6 6 0 0 0 9.5 4.87M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4 4l16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+                <button class="icon-btn hidden" id="voice-hangup-btn" onclick="endVoiceCall()" title="Leave call" aria-label="Leave call">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5V7a3.5 3.5 0 0 0-7 0v4.5A3.5 3.5 0 0 0 12 15Z" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4 20 20 4" stroke="var(--danger)" stroke-width="1.8" stroke-linecap="round"/></svg>
                 </button>
                 <button class="icon-btn" id="music-btn-game" onclick="openMusicPicker()" title="Cozy music" aria-label="Cozy music">
                     <svg class="icon-svg icon-music-off" viewBox="0 0 24 24" fill="none"><path d="M9 18V6l11-2v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" stroke="currentColor" stroke-width="1.6"/><circle cx="17.5" cy="16" r="2.5" stroke="currentColor" stroke-width="1.6"/></svg>
@@ -1444,7 +1687,9 @@ a { color: var(--accent); }
     </div>
 
     <div class="preview-banner hidden" id="preview-banner"></div>
+    <div class="handoff-banner hidden" id="handoff-banner"></div>
     <div class="status-line" id="status-line"></div>
+    <div id="reaction-layer" aria-hidden="true"></div>
 
     <main id="game-stage">
         <div id="stage-chess" class="game-panel hidden">
@@ -1504,6 +1749,68 @@ a { color: var(--accent); }
                 <div class="wb-hint">Draw together — it syncs instantly ✨</div>
             </div>
         </div>
+
+        <div id="stage-ytsync" class="game-panel hidden">
+            <div class="board-frame yts-frame">
+                <div class="yts-screen" id="yts-screen">
+                    <div id="yts-player"></div>
+                    <div class="yts-empty" id="yts-empty">
+                        <span class="yts-empty-icon">🍿</span>
+                        <span class="yts-empty-text">Nothing queued yet — paste a link or search below</span>
+                    </div>
+                    <div class="yts-stuck-hint hidden" id="yts-stuck-hint">
+                        Still loading — this can happen on a slow connection.
+                        <button onclick="YTSync.retryStuck()">Tap to retry</button>
+                    </div>
+                    <div class="yts-countdown hidden" id="yts-countdown"><span id="yts-countdown-num">3</span></div>
+                </div>
+
+                <div class="yts-now" id="yts-now">
+                    <span class="yts-now-dot"></span>
+                    <span class="yts-now-title" id="yts-now-title">Pick something to watch together</span>
+                </div>
+
+                <div class="yts-controls">
+                    <button class="yts-ctrl-btn" onclick="YTSync.seekBy(-10)" title="Back 10s" aria-label="Back 10 seconds">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M11 5 4 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12h9a6 6 0 0 1 0 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </button>
+                    <button class="yts-ctrl-btn primary" id="yts-playpause-btn" onclick="YTSync.togglePlay()" title="Play / pause" aria-label="Play or pause">
+                        <svg id="yts-play-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        <svg id="yts-pause-icon" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+                    </button>
+                    <button class="yts-ctrl-btn" onclick="YTSync.seekBy(10)" title="Forward 10s" aria-label="Forward 10 seconds">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M13 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 12h-9a6 6 0 0 0 0 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </button>
+                    <div class="yts-ctrl-spacer"></div>
+                    <button class="yts-ctrl-btn together" onclick="YTSync.playTogether()" title="Play together — synced countdown start">
+                        <span class="yts-together-icon">✨</span>Play together
+                    </button>
+                </div>
+
+                <div class="yts-add-row">
+                    <input class="yts-url-input" id="yts-url-input" placeholder="Paste a YouTube link…" onkeydown="if(event.key==='Enter')YTSync.loadFromInput()">
+                    <button class="yts-add-btn" onclick="YTSync.loadFromInput()" title="Play now" aria-label="Play now">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <button class="yts-add-btn ghost" onclick="YTSync.addFromInput()" title="Add to queue" aria-label="Add to queue">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </button>
+                    <button class="yts-add-btn ghost" onclick="YTSync.openSearch()" title="Search YouTube" aria-label="Search YouTube">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </button>
+                </div>
+
+                <div class="yts-queue-wrap">
+                    <div class="yts-queue-head">
+                        <span>Up next</span>
+                        <span class="yts-queue-count" id="yts-queue-count">0</span>
+                    </div>
+                    <div class="yts-queue" id="yts-queue">
+                        <div class="yts-queue-empty" id="yts-queue-empty">Queue's empty — add a few and take turns 🎬</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <div class="action-row" id="action-row">
@@ -1554,6 +1861,38 @@ a { color: var(--accent); }
 </div>
 
 <!-- ============================================================
+     WATCH TOGETHER — SEARCH OVERLAY
+     ============================================================ -->
+<div class="overlay hidden" id="yts-search-overlay">
+    <div class="overlay-card glass yts-search-card">
+        <h2>Find something to watch</h2>
+        <div class="yts-search-row">
+            <input id="yts-search-input" placeholder="Search YouTube…" onkeydown="if(event.key==='Enter')YTSync.runSearch()">
+            <button class="btn-icon-round" onclick="YTSync.runSearch()" title="Search" aria-label="Search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+        </div>
+        <div class="yts-search-status" id="yts-search-status"></div>
+        <div class="yts-search-results" id="yts-search-results"></div>
+        <button class="btn btn-ghost" onclick="YTSync.closeSearch()">Close</button>
+    </div>
+</div>
+
+<!-- ============================================================
+     WATCH TOGETHER — PLAY NOW / ADD TO QUEUE PICK POPUP
+     ============================================================ -->
+<div class="overlay hidden" id="yts-pick-overlay">
+    <div class="overlay-card glass" style="max-width:340px;">
+        <img id="yts-pick-thumb" class="yts-pick-thumb" src="" alt="">
+        <h2 class="yts-pick-title" id="yts-pick-title"></h2>
+        <p class="overlay-sub" id="yts-pick-channel"></p>
+        <button class="btn btn-primary" style="background:var(--g-yt); box-shadow:0 4px 0 #C22F49;" onclick="YTSync.confirmPick('play')">Play now</button>
+        <button class="btn btn-ghost" onclick="YTSync.confirmPick('queue')">Add to queue</button>
+        <button class="btn btn-ghost" onclick="YTSync.closePick()">Cancel</button>
+    </div>
+</div>
+
+<!-- ============================================================
      END-OF-GAME OVERLAY
      ============================================================ -->
 <div class="overlay hidden" id="end-overlay">
@@ -1598,6 +1937,30 @@ a { color: var(--accent); }
 </div>
 
 <!-- ============================================================
+     ROOM THEME PICKER (background + accent color for this room)
+     ============================================================ -->
+<div class="overlay hidden" id="room-theme-overlay">
+    <div class="overlay-card glass" style="max-width:380px;">
+        <h2>Room theme</h2>
+        <p class="overlay-sub">Changes the background and accent color for this room, on this device.</p>
+        <div class="room-theme-grid" id="room-theme-grid"></div>
+        <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeRoomThemePicker()">Close</button>
+    </div>
+</div>
+
+<!-- ============================================================
+     REACTIONS TRAY
+     ============================================================ -->
+<div class="overlay hidden" id="reactions-overlay">
+    <div class="overlay-card glass" style="max-width:340px; text-align:center;">
+        <h2>Send a reaction</h2>
+        <p class="overlay-sub">Floats up on both screens.</p>
+        <div class="reaction-tray" id="reaction-tray"></div>
+        <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeReactionsPicker()">Close</button>
+    </div>
+</div>
+
+<!-- ============================================================
      COZY MUSIC PICKER
      ============================================================ -->
 <div class="overlay hidden" id="music-picker-overlay">
@@ -1632,9 +1995,10 @@ const GAMES = {
     c4:       { name: 'Connect 4',    icon: '🔴', color: 'g-c4' },
     checkers: { name: 'Checkers',     icon: '⛃', color: 'g-chk' },
     reversi:  { name: 'Reversi',      icon: '⬤', color: 'g-rev' },
-    whiteboard: { name: 'Whiteboard', icon: '🎨', color: 'g-wb' }
+    whiteboard: { name: 'Whiteboard', icon: '🎨', color: 'g-wb' },
+    ytsync: { name: 'Watch Together', icon: '📺', color: 'g-yt' }
 };
-const GAME_ORDER = ['chess', 'ttt', 'c4', 'checkers', 'reversi', 'whiteboard'];
+const GAME_ORDER = ['chess', 'ttt', 'c4', 'checkers', 'reversi', 'whiteboard', 'ytsync'];
 
 function buildGamePickGrid(containerId, onPick) {
     const el = document.getElementById(containerId);
@@ -1985,6 +2349,7 @@ function initPeer(attempt) {
     peer.on('open', id => {
         reconnectAttempts = 0;
         setMyIdDisplay(code, false);
+        if (amHost || !inGameSession) rememberRoomCode(code);
         if (roomFromUrl && !autoJoinAttempted) {
             autoJoinAttempted = true;
             showRole('join');
@@ -2114,9 +2479,32 @@ function doJoin() {
     joinBtn.disabled = true; joinBtn.innerText = 'Connecting…';
     lastJoinedCode = code;
     amHost = false;
+    rememberRoomCode(code);
 
     if (!peer || peer.destroyed) { initPeer(0); setTimeout(() => attemptJoin(code), 500); }
     else attemptJoin(code);
+}
+
+// ===================================================================
+// ROOM CODE PERSISTENCE — remembers the last room code (joined or
+// hosted) so a refresh mid-game can prefill the join box instead of
+// forcing the person to dig up the code again. Never auto-rejoins —
+// the person still has to press Join.
+// ===================================================================
+function rememberRoomCode(code) {
+    if (!/^\d{5}$/.test(code || '')) return;
+    try { localStorage.setItem('twoplay_last_room', code); } catch (e) {}
+}
+function forgetRoomCode() {
+    try { localStorage.removeItem('twoplay_last_room'); } catch (e) {}
+}
+function prefillLastRoomCode() {
+    if (roomFromUrl) return; // an explicit ?room= link always wins
+    let saved = null;
+    try { saved = localStorage.getItem('twoplay_last_room'); } catch (e) {}
+    if (!saved || !/^\d{5}$/.test(saved)) return;
+    const input = document.getElementById('join-code-input');
+    if (input && !input.value) input.value = saved;
 }
 function attemptJoin(code) {
     if (!peer || !peer.open) { setTimeout(() => attemptJoin(code), 300); return; }
@@ -2304,18 +2692,21 @@ function voiceSupported() { return !localMode && !!(navigator.mediaDevices && na
 
 function updateVoiceButtonVisibility() {
     const btn = document.getElementById('voice-call-btn');
-    if (!btn) return;
-    btn.classList.toggle('hidden', !voiceSupported());
+    const hangupBtn = document.getElementById('voice-hangup-btn');
+    if (btn) btn.classList.toggle('hidden', !voiceSupported());
+    if (hangupBtn) hangupBtn.classList.toggle('hidden', !voiceSupported() || !voiceInCall);
 }
 
 function setVoiceButtonState() {
     const btn = document.getElementById('voice-call-btn');
+    const hangupBtn = document.getElementById('voice-hangup-btn');
     if (!btn) return;
     const onIcon = btn.querySelector('.icon-mic-on');
     const offIcon = btn.querySelector('.icon-mic-off');
     const mutedIcon = btn.querySelector('.icon-mic-muted');
     onIcon.classList.add('hidden'); offIcon.classList.add('hidden'); mutedIcon.classList.add('hidden');
     btn.classList.remove('in-call', 'muted');
+    if (hangupBtn) hangupBtn.classList.toggle('hidden', !voiceSupported() || !voiceInCall);
     if (!voiceInCall) {
         offIcon.classList.remove('hidden');
         btn.title = btn.setAttribute('aria-label', 'Start voice call');
@@ -2639,6 +3030,7 @@ function enterGame() {
     setTimeout(() => { landing.style.display = 'none'; }, 240);
     document.getElementById('app').classList.add('live');
     document.getElementById('mini-room-code').innerText = 'Room ' + (lastJoinedCode || document.getElementById('my-id-display').innerText);
+    loadRoomThemeForCurrentRoom();
     document.getElementById('me-name').innerText = myDisplayName || 'You';
     document.getElementById('opp-name').innerText = oppName;
     resetSessionScore();
@@ -2654,7 +3046,7 @@ function updateAvatars() {
     const oppAv = document.getElementById('opp-avatar');
     const meP = myColor === 'w' ? 'p1' : 'p2';
     const oppP = myColor === 'w' ? 'p2' : 'p1';
-    const glyphs = { chess: ['♔', '♚'], ttt: ['✕', '○'], c4: ['●', '●'], checkers: ['⛀', '⛂'], reversi: ['⚪', '⚫'], whiteboard: ['🖌️', '🖌️'] };
+    const glyphs = { chess: ['♔', '♚'], ttt: ['✕', '○'], c4: ['●', '●'], checkers: ['⛀', '⛂'], reversi: ['⚪', '⚫'], whiteboard: ['🖌️', '🖌️'], ytsync: ['🍿', '🍿'] };
     const g = glyphs[currentGame] || ['●', '●'];
     meAv.className = 'player-avatar ' + (myColor === 'w' ? 'white' : 'black');
     meAv.innerText = myColor === 'w' ? g[0] : g[1];
@@ -2676,11 +3068,12 @@ function initGame(key, resetState) {
     document.querySelectorAll('.player-clock').forEach(el => el.style.display = usesClock ? '' : 'none');
     document.getElementById('takeback-btn').style.display = (key === 'chess' || key === 'checkers' || key === 'reversi') ? '' : 'none';
 
-    // Whiteboard is a free-draw collaborative canvas, not a win/lose game —
-    // the Draw/Takeback/Resign row and quick-chat "gg" style actions don't
-    // apply, so hide the whole action row instead of leaving dead buttons.
+    // Whiteboard and Watch Together are free-form shared panels, not
+    // win/lose games — the Draw/Takeback/Resign row and quick-chat "gg"
+    // style actions don't apply, so hide the whole action row instead of
+    // leaving dead buttons.
     const actionRow = document.getElementById('action-row');
-    if (actionRow) actionRow.style.display = (key === 'whiteboard') ? 'none' : '';
+    if (actionRow) actionRow.style.display = (key === 'whiteboard' || key === 'ytsync') ? 'none' : '';
 
     if (!GameControllers[key]) { toast('That game isn\'t ready yet.'); return; }
     GameControllers[key].init(amHost || localMode, resetState !== false);
@@ -2744,6 +3137,7 @@ function handleData(data) {
             case 'ping': safeSend({ type: 'pong', seq: data.seq }); break;
             case 'pong': handlePong(data.seq); break;
             case 'chat': displayChat(data.msg, false); sndNotify(); break;
+            case 'reaction': spawnFloatingReaction(data.emoji, false); break;
             case 'switch_game':
                 currentGame = data.game;
                 initGame(data.game, true);
@@ -2884,12 +3278,29 @@ function updateClockDisplay() {
 
 // ---- Status line ----
 function setStatusLine() {
-    if (gameEnded) return;
+    if (gameEnded) { updateHandoffBanner(); return; }
     const ctrl = GameControllers[currentGame];
     const text = (ctrl && ctrl.statusText) ? ctrl.statusText() : '';
     setStatusLineText(text);
+    updateHandoffBanner();
 }
 function setStatusLineText(text) { document.getElementById('status-line').innerText = text || ''; }
+
+// ---- Pass-and-play turn handoff (local mode only) ----
+// Local-mode game controllers set myColor to whoever's turn it is and call
+// updateAvatars()/setStatusLine() on every turn change (see e.g. chess's
+// `if (localMode) { myColor = chess.turn(); updateAvatars(); }`), so hooking
+// this into setStatusLine() covers every game without touching each one.
+const HANDOFF_GLYPHS = { chess: ['♔ White', '♚ Black'], ttt: ['✕', '○'], c4: ['Yellow', 'Red'], checkers: ['Light', 'Dark'], reversi: ['Light', 'Dark'] };
+function updateHandoffBanner() {
+    const banner = document.getElementById('handoff-banner');
+    if (!banner) return;
+    const glyphs = HANDOFF_GLYPHS[currentGame];
+    if (!localMode || gameEnded || !glyphs) { banner.classList.add('hidden'); return; }
+    const whoseTurn = myColor === 'w' ? glyphs[0] : glyphs[1];
+    banner.innerText = 'Pass the device — ' + whoseTurn + "'s turn";
+    banner.classList.remove('hidden');
+}
 
 // ---- End game / overlay ----
 function endGame(title, sub, kind, winnerColor) {
@@ -2983,6 +3394,8 @@ function leaveRoom() {
     try { if (conn) conn.close(); } catch (e) {}
     try { if (peer) peer.destroy(); } catch (e) {}
     conn = null;
+    forgetRoomCode();
+    Object.keys(ROOM_THEMES).forEach(k => document.body.classList.remove('room-theme-' + k));
     // A fresh reload is the simplest reliable way back to a clean landing
     // state — the app's boot path already handles first-load setup, so we
     // don't need to hand-unwind every piece of live-game UI/state here.
@@ -3037,6 +3450,54 @@ function displayChat(msg, isMe) {
     div.innerText = msg;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
+}
+
+// ===================================================================
+// FLOATING REACTIONS
+// ===================================================================
+const REACTION_EMOJIS = ['😂', '😮', '🔥', '❤️', '👏', '😢', '😡', '🎉'];
+
+function buildReactionTray() {
+    const el = document.getElementById('reaction-tray');
+    if (!el) return;
+    el.innerHTML = '';
+    REACTION_EMOJIS.forEach(emoji => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerText = emoji;
+        btn.setAttribute('aria-label', 'Send ' + emoji);
+        btn.addEventListener('click', () => sendReaction(emoji));
+        el.appendChild(btn);
+    });
+}
+function openReactionsPicker() {
+    buildReactionTray();
+    document.getElementById('reactions-overlay').classList.remove('hidden');
+}
+function closeReactionsPicker() { document.getElementById('reactions-overlay').classList.add('hidden'); }
+
+function sendReaction(emoji) {
+    if (!localMode) safeSend({ type: 'reaction', emoji });
+    spawnFloatingReaction(emoji, true);
+    closeReactionsPicker();
+}
+// isMe just biases the horizontal spawn spot (left for opponent, right for
+// you) so simultaneous reactions from both sides don't stack on top of
+// each other; the reaction layer itself never blocks the board or
+// bottom UI (see #reaction-layer's `bottom` inset).
+function spawnFloatingReaction(emoji, isMe) {
+    const layer = document.getElementById('reaction-layer');
+    if (!layer || !emoji) return;
+    const span = document.createElement('span');
+    span.className = 'floating-reaction';
+    span.innerText = emoji;
+    const side = isMe ? (60 + Math.random() * 24) : (16 + Math.random() * 24); // % from left
+    span.style.left = side + '%';
+    span.style.animationDuration = (2.2 + Math.random() * 0.8) + 's';
+    layer.appendChild(span);
+    span.addEventListener('animationend', () => span.remove());
+    // Safety net in case animationend never fires (e.g. tab backgrounded).
+    setTimeout(() => { if (span.isConnected) span.remove(); }, 3600);
 }
 
 // ---- Keyboard shortcuts ----
@@ -3191,6 +3652,79 @@ function openThemePicker() {
     document.getElementById('theme-picker-overlay').classList.remove('hidden');
 }
 function closeThemePicker() { document.getElementById('theme-picker-overlay').classList.add('hidden'); }
+
+// ===================================================================
+// ROOM THEMES — background + accent color for the in-game shell.
+// Local-only display preference (never sent to the opponent), stored
+// per-room so different rooms can remember different looks.
+// =================================================================== 
+const ROOM_THEMES = {
+    classic:   { name: 'Classic',   swatch: 'linear-gradient(135deg, #FFF8EE 55%, #FF6FA5 55%)' },
+    sunset:    { name: 'Sunset',    swatch: 'linear-gradient(135deg, #FFF3E9 55%, #FF7A45 55%)' },
+    mint:      { name: 'Mint',      swatch: 'linear-gradient(135deg, #EAFBF3 55%, #1FAE7A 55%)' },
+    lavender:  { name: 'Lavender',  swatch: 'linear-gradient(135deg, #F4F0FF 55%, #8A63F2 55%)' },
+    midnight:  { name: 'Midnight',  swatch: 'linear-gradient(135deg, #232041 55%, #7FA8FF 55%)' },
+    sun:       { name: 'Sun',       swatch: 'linear-gradient(135deg, #FFF9E3 55%, #F2B705 55%)' }
+};
+let currentRoomTheme = 'classic';
+
+function roomThemeStorageKey() {
+    // Prefer the actual room code so each room can carry its own theme.
+    // Joiners have it in lastJoinedCode; hosts have it in myPeerCode
+    // (lastJoinedCode stays null on the host side). Falls back to a
+    // shared key if neither is available yet.
+    const code = (typeof lastJoinedCode === 'string' && lastJoinedCode)
+        ? lastJoinedCode
+        : ((typeof myPeerCode === 'string' && myPeerCode) ? myPeerCode : 'default');
+    return 'twoplay_room_theme_' + code;
+}
+function loadRoomThemeForCurrentRoom() {
+    let theme = 'classic';
+    try {
+        const saved = localStorage.getItem(roomThemeStorageKey());
+        if (saved && ROOM_THEMES[saved]) theme = saved;
+    } catch (e) {}
+    applyRoomTheme(theme, false);
+}
+function applyRoomTheme(key, persist) {
+    if (!ROOM_THEMES[key]) key = 'classic';
+    currentRoomTheme = key;
+    Object.keys(ROOM_THEMES).forEach(k => document.body.classList.remove('room-theme-' + k));
+    if (key !== 'classic') document.body.classList.add('room-theme-' + key);
+    if (persist) {
+        try { localStorage.setItem(roomThemeStorageKey(), key); } catch (e) {}
+    }
+    buildRoomThemeGrid();
+}
+function setRoomTheme(key) { applyRoomTheme(key, true); }
+
+function buildRoomThemeGrid() {
+    const el = document.getElementById('room-theme-grid');
+    if (!el) return;
+    el.innerHTML = '';
+    Object.keys(ROOM_THEMES).forEach(key => {
+        const t = ROOM_THEMES[key];
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'room-theme-card' + (key === currentRoomTheme ? ' active' : '');
+        card.setAttribute('aria-label', t.name);
+        const swatch = document.createElement('div');
+        swatch.className = 'room-theme-swatch';
+        swatch.style.background = t.swatch;
+        const label = document.createElement('span');
+        label.className = 'room-theme-name';
+        label.innerText = t.name;
+        card.appendChild(swatch);
+        card.appendChild(label);
+        card.addEventListener('click', () => setRoomTheme(key));
+        el.appendChild(card);
+    });
+}
+function openRoomThemePicker() {
+    buildRoomThemeGrid();
+    document.getElementById('room-theme-overlay').classList.remove('hidden');
+}
+function closeRoomThemePicker() { document.getElementById('room-theme-overlay').classList.add('hidden'); }
 
 // ===================================================================
 // COZY BACKGROUND MUSIC
@@ -4963,9 +5497,470 @@ function updateMusicButtons() {
 })();
 
 // ===================================================================
+// WATCH TOGETHER (ytsync) — YouTube IFrame API, synced over the room's
+// existing PeerJS data channel via gameSend/onData (kind-tagged payloads,
+// same envelope convention as every other GameControllers module).
+// Ported from a standalone sync-watch build: keeps the drift-corrected
+// sync loop, stuck-buffer recovery, and countdown "Play together" start,
+// since those fix real mobile playback bugs rather than being decorative.
+// ===================================================================
+(function () {
+    let player = null;
+    let playerReady = false;
+    let apiLoading = false;
+    let currentVideoId = null;
+    let queue = []; // { uid, id, title, thumb }
+
+    let syncGeneration = 0;
+    let ignoreStateChangeGen = -1;
+    const SYNC_DRIFT_THRESHOLD = 2; // seconds — only hard-seek if actually this far off
+    const STUCK_BUFFER_MS = 9000;
+    let stuckCheckHandle = null;
+
+    const PLAY_TOGETHER_COUNTDOWN_MS = 3000;
+    let playTogetherTimer = null;
+
+    function uid() { return 'yt' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+    function extractId(raw) {
+        const url = (raw || '').trim();
+        const patterns = [
+            /(?:youtube\.com\/watch\?.*v=)([\w-]{11})/,
+            /(?:youtu\.be\/)([\w-]{11})/,
+            /(?:youtube\.com\/embed\/)([\w-]{11})/
+        ];
+        for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
+        return /^[\w-]{11}$/.test(url) ? url : null;
+    }
+
+    function loadYouTubeApiOnce() {
+        if (window.YT && window.YT.Player) { setupPlayer(); return; }
+        if (apiLoading) return;
+        apiLoading = true;
+        const prevReady = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = function () {
+            if (typeof prevReady === 'function') prevReady();
+            setupPlayer();
+        };
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+    }
+
+    function setupPlayer() {
+        if (player) return;
+        // origin must be a real http(s) origin YouTube can validate — when
+        // this page is opened via file:// or content:// (e.g. straight from
+        // a downloaded HTML file rather than a real web server),
+        // location.origin is "null" or a non-http scheme, which the iframe
+        // API rejects outright with Error 153. Omitting origin entirely in
+        // that case still lets the embed work; only pass it when we're
+        // actually on http(s).
+        const isHttp = /^https?:$/.test(window.location.protocol);
+        const vars = { enablejsapi: 1, playsinline: 1, rel: 0 };
+        if (isHttp) vars.origin = window.location.origin;
+        else console.warn('Twoplay: page is not served over http(s) (protocol is "' + window.location.protocol + '") — YouTube embeds may still fail to load. Serve this file from a real web server (e.g. `npx serve`) instead of opening it directly.');
+        player = new YT.Player('yts-player', {
+            playerVars: vars,
+            events: {
+                onReady: () => { playerReady = true; },
+                onStateChange: onPlayerStateChange,
+                onError: onPlayerError
+            }
+        });
+    }
+
+    function onPlayerError(e) {
+        const code = e && e.data;
+        let msg = 'That video could not be played.';
+        if (code === 101 || code === 150) msg = "This video's owner disabled it from playing elsewhere — try another.";
+        else if (code === 100) msg = 'That video is private or was removed.';
+        else if (code === 2) msg = "That link doesn't point to a valid video.";
+        else if (code === 153) msg = /^https?:$/.test(window.location.protocol)
+            ? "YouTube blocked embedding here — try another video."
+            : "YouTube can't embed video on a page opened this way — open Twoplay from a real web link instead of a downloaded file.";
+        toast(msg, code === 153 ? 6000 : 3200);
+    }
+
+    function setNowShowing(title) {
+        const el = document.getElementById('yts-now-title');
+        if (el) el.innerText = title || 'Pick something to watch together';
+        const empty = document.getElementById('yts-empty');
+        if (empty) empty.style.display = currentVideoId ? 'none' : 'flex';
+    }
+
+    function setPlayPauseIcon(isPlaying) {
+        const play = document.getElementById('yts-play-icon');
+        const pause = document.getElementById('yts-pause-icon');
+        if (play) play.classList.toggle('hidden', isPlaying);
+        if (pause) pause.classList.toggle('hidden', !isPlaying);
+    }
+
+    function onPlayerStateChange(e) {
+        if (e.data === YT.PlayerState.BUFFERING) { armStuckBufferWatch(); return; }
+        if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.PAUSED) {
+            clearStuckBufferWatch();
+            const playing = e.data === YT.PlayerState.PLAYING;
+            document.body.classList.toggle('video-playing', playing);
+            setPlayPauseIcon(playing);
+            if (ignoreStateChangeGen === syncGeneration) { ignoreStateChangeGen = -1; return; }
+        }
+        if (e.data === YT.PlayerState.PLAYING) {
+            gameSend({ kind: 'sync', action: 'play', time: player.getCurrentTime() });
+        } else if (e.data === YT.PlayerState.PAUSED) {
+            gameSend({ kind: 'sync', action: 'pause', time: player.getCurrentTime() });
+        } else if (e.data === YT.PlayerState.ENDED) {
+            playNextInQueue();
+        }
+    }
+
+    function armStuckBufferWatch() {
+        clearStuckBufferWatch();
+        stuckCheckHandle = setTimeout(() => {
+            if (!player || typeof player.getPlayerState !== 'function') return;
+            if (player.getPlayerState() === YT.PlayerState.BUFFERING) {
+                const hint = document.getElementById('yts-stuck-hint');
+                if (hint) hint.classList.remove('hidden');
+            }
+        }, STUCK_BUFFER_MS);
+    }
+    function clearStuckBufferWatch() {
+        if (stuckCheckHandle) clearTimeout(stuckCheckHandle);
+        stuckCheckHandle = null;
+        const hint = document.getElementById('yts-stuck-hint');
+        if (hint) hint.classList.add('hidden');
+    }
+    function retryStuck() {
+        const hint = document.getElementById('yts-stuck-hint');
+        if (hint) hint.classList.add('hidden');
+        if (!player || typeof player.getCurrentTime !== 'function') return;
+        const t = player.getCurrentTime();
+        player.seekTo(t, true);
+        player.playVideo();
+    }
+
+    function applyRemoteSync(action, time) {
+        if (!player || typeof player.getCurrentTime !== 'function') return;
+        syncGeneration++;
+        ignoreStateChangeGen = syncGeneration;
+        const current = player.getCurrentTime();
+        if (typeof time === 'number' && Math.abs(current - time) > SYNC_DRIFT_THRESHOLD) player.seekTo(time, true);
+        if (action === 'play') player.playVideo();
+        else if (action === 'pause') player.pauseVideo();
+    }
+
+    function togglePlay() {
+        if (!player || typeof player.getPlayerState !== 'function') return;
+        if (player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
+        else player.playVideo();
+    }
+    function seekBy(deltaSec) {
+        if (!player || typeof player.getCurrentTime !== 'function') return;
+        const t = Math.max(0, player.getCurrentTime() + deltaSec);
+        player.seekTo(t, true);
+        gameSend({ kind: 'sync', action: 'seek', time: t });
+    }
+
+    function playTogether() {
+        if (!player || typeof player.playVideo !== 'function' || !currentVideoId) { toast('Load a video first.'); return; }
+        const startTime = (typeof player.getCurrentTime === 'function') ? player.getCurrentTime() : 0;
+        const target = Date.now() + PLAY_TOGETHER_COUNTDOWN_MS;
+        gameSend({ kind: 'play_together', target, startTime, videoId: currentVideoId });
+        beginCountdown(target, startTime);
+    }
+    function beginCountdown(target, startTime) {
+        if (playTogetherTimer) { clearInterval(playTogetherTimer); playTogetherTimer = null; }
+        const overlay = document.getElementById('yts-countdown');
+        const numEl = document.getElementById('yts-countdown-num');
+        if (overlay) overlay.classList.remove('hidden');
+        if (player && typeof player.seekTo === 'function') player.seekTo(startTime, true);
+        const tick = () => {
+            const msLeft = target - Date.now();
+            const secLeft = Math.max(0, Math.ceil(msLeft / 1000));
+            if (numEl) numEl.innerText = secLeft > 0 ? secLeft : '▶';
+            if (msLeft <= 0) {
+                clearInterval(playTogetherTimer); playTogetherTimer = null;
+                if (overlay) setTimeout(() => overlay.classList.add('hidden'), 260);
+                if (player && typeof player.playVideo === 'function') player.playVideo();
+            }
+        };
+        tick();
+        playTogetherTimer = setInterval(tick, 200);
+    }
+
+    function playId(id) {
+        currentVideoId = id;
+        loadYouTubeApiOnce();
+        if (player && typeof player.cueVideoById === 'function') player.loadVideoById(id);
+        gameSend({ kind: 'video', id });
+        fetchVideoMeta(id).then(meta => setNowShowing(meta.title));
+    }
+
+    function loadFromInput() {
+        const input = document.getElementById('yts-url-input');
+        const id = extractId(input.value);
+        if (!id) { toast("Couldn't find a video in that link."); return; }
+        input.value = '';
+        playId(id);
+    }
+    function addFromInput() {
+        const input = document.getElementById('yts-url-input');
+        const id = extractId(input.value);
+        if (!id) { toast("Couldn't find a video in that link."); return; }
+        input.value = '';
+        addToQueue(id);
+    }
+
+    function addToQueue(id) {
+        const item = { uid: uid(), id, title: null, thumb: `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+        queue.push(item);
+        renderQueue();
+        gameSend({ kind: 'queue_add', item });
+        fetchVideoMeta(id).then(meta => {
+            item.title = meta.title;
+            renderQueue();
+            gameSend({ kind: 'queue_update', uid: item.uid, title: meta.title });
+        });
+    }
+    function playNextInQueue() {
+        if (queue.length === 0) return;
+        const next = queue.shift();
+        gameSend({ kind: 'queue_remove', uid: next.uid });
+        renderQueue();
+        playId(next.id);
+    }
+    function playQueueItem(uidVal) {
+        const item = queue.find(q => q.uid === uidVal);
+        if (!item) return;
+        queue = queue.filter(q => q.uid !== uidVal);
+        gameSend({ kind: 'queue_remove', uid: uidVal });
+        renderQueue();
+        playId(item.id);
+    }
+    function removeQueueItem(uidVal) {
+        queue = queue.filter(q => q.uid !== uidVal);
+        renderQueue();
+        gameSend({ kind: 'queue_remove', uid: uidVal });
+    }
+    function renderQueue() {
+        const wrap = document.getElementById('yts-queue');
+        const empty = document.getElementById('yts-queue-empty');
+        const count = document.getElementById('yts-queue-count');
+        if (!wrap) return;
+        if (count) count.innerText = queue.length;
+        wrap.querySelectorAll('.yts-queue-item').forEach(el => el.remove());
+        if (empty) empty.style.display = queue.length ? 'none' : 'block';
+        queue.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'yts-queue-item';
+            row.innerHTML = `
+                <img src="${item.thumb}" alt="" loading="lazy" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/${item.id}/hqdefault.jpg';">
+                <div class="yts-queue-item-meta"><div class="yts-queue-item-title">${escapeHtml(item.title || 'Loading title…')}</div></div>
+                <div class="yts-queue-item-btns">
+                    <button class="yts-queue-item-btn play" title="Play now" aria-label="Play now">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <button class="yts-queue-item-btn remove" title="Remove" aria-label="Remove">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </button>
+                </div>`;
+            row.querySelector('.play').onclick = () => playQueueItem(item.uid);
+            row.querySelector('.remove').onclick = () => removeQueueItem(item.uid);
+            wrap.appendChild(row);
+        });
+    }
+
+    async function fetchVideoMeta(id) {
+        try {
+            const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`);
+            const data = await res.json();
+            if (data && data.title) return { title: data.title };
+            throw new Error('no title');
+        } catch (e) {
+            try {
+                const res2 = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`);
+                if (!res2.ok) throw new Error('fallback failed');
+                const data2 = await res2.json();
+                return { title: data2.title || id };
+            } catch (e2) { return { title: id }; }
+        }
+    }
+
+    /* ---- Search (same GitHub-hosted rotating-key approach as the standalone build) ---- */
+    const YT_API_KEY_FILE_URL = 'https://raw.githubusercontent.com/Bhavishyadalal/youtube-sharing/main/api-key.txt';
+    let apiKeys = [];
+    let currentKeyIndex = 0;
+    let keysLoaded = false;
+    (async function loadRemoteApiKeys() {
+        try {
+            const res = await fetch(YT_API_KEY_FILE_URL + '?v=' + Date.now());
+            if (!res.ok) return;
+            const text = await res.text();
+            apiKeys = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('#'));
+        } catch (e) { /* search just won't be available */ }
+        keysLoaded = true;
+    })();
+
+    async function ytApiFetch(buildUrl) {
+        if (apiKeys.length === 0) return null;
+        let tried = 0;
+        while (tried < apiKeys.length) {
+            const key = apiKeys[currentKeyIndex];
+            try {
+                const res = await fetch(buildUrl(key));
+                if (res.status === 403 || res.status === 429) {
+                    currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+                    tried++; continue;
+                }
+                if (!res.ok) return { _httpError: res.status };
+                return await res.json();
+            } catch (e) { return null; }
+        }
+        return { _quotaExhausted: true };
+    }
+
+    let searchInFlight = false;
+    let pendingPick = null;
+    let overlayClickBound = false;
+    function bindOverlayDismiss() {
+        if (overlayClickBound) return;
+        overlayClickBound = true;
+        const so = document.getElementById('yts-search-overlay');
+        const po = document.getElementById('yts-pick-overlay');
+        if (so) so.addEventListener('click', e => { if (e.target === so) closeSearch(); });
+        if (po) po.addEventListener('click', e => { if (e.target === po) closePick(); });
+    }
+    function openSearch() {
+        bindOverlayDismiss();
+        document.getElementById('yts-search-overlay').classList.remove('hidden');
+        setTimeout(() => document.getElementById('yts-search-input').focus(), 50);
+    }
+    function closeSearch() { document.getElementById('yts-search-overlay').classList.add('hidden'); }
+    function setSearchStatus(msg) {
+        const el = document.getElementById('yts-search-status');
+        el.innerText = msg || '';
+    }
+    async function runSearch() {
+        const q = document.getElementById('yts-search-input').value.trim();
+        const resultsEl = document.getElementById('yts-search-results');
+        if (!q) { setSearchStatus('Type something to search for.'); return; }
+        if (searchInFlight) return;
+        if (keysLoaded && apiKeys.length === 0) { setSearchStatus('Search is unavailable right now — try pasting a link instead.'); return; }
+        searchInFlight = true;
+        resultsEl.innerHTML = '';
+        setSearchStatus('Searching…');
+        const data = await ytApiFetch(key =>
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q=${encodeURIComponent(q)}&key=${encodeURIComponent(key)}`
+        );
+        if (!data) setSearchStatus("Couldn't reach YouTube. Check your connection and try again.");
+        else if (data._quotaExhausted) setSearchStatus('Search is out of quota for today — try pasting a link instead.');
+        else if (data._httpError) setSearchStatus('Search failed. Try again in a moment.');
+        else {
+            const items = Array.isArray(data.items) ? data.items : [];
+            if (items.length === 0) setSearchStatus('No results for "' + q + '".');
+            else { setSearchStatus(''); renderSearchResults(items); }
+        }
+        searchInFlight = false;
+    }
+    function renderSearchResults(items) {
+        const resultsEl = document.getElementById('yts-search-results');
+        resultsEl.innerHTML = '';
+        items.forEach(it => {
+            if (!it.id || !it.id.videoId) return;
+            const id = it.id.videoId;
+            const title = (it.snippet && it.snippet.title) || id;
+            const channel = (it.snippet && it.snippet.channelTitle) || '';
+            const thumb = (it.snippet && it.snippet.thumbnails && (it.snippet.thumbnails.medium || it.snippet.thumbnails.default || {}).url)
+                || `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'yts-search-result-card';
+            card.innerHTML = `
+                <img src="${thumb}" alt="" loading="lazy">
+                <div><div class="yts-sr-title">${escapeHtml(title)}</div><div class="yts-sr-channel">${escapeHtml(channel)}</div></div>`;
+            card.onclick = () => openPick({ id, title, channel, thumb });
+            resultsEl.appendChild(card);
+        });
+    }
+    function openPick(item) {
+        pendingPick = item;
+        document.getElementById('yts-pick-thumb').src = item.thumb;
+        document.getElementById('yts-pick-title').innerText = item.title;
+        document.getElementById('yts-pick-channel').innerText = item.channel || '';
+        document.getElementById('yts-pick-overlay').classList.remove('hidden');
+    }
+    function closePick() { document.getElementById('yts-pick-overlay').classList.add('hidden'); pendingPick = null; }
+    function confirmPick(mode) {
+        if (!pendingPick) return;
+        const id = pendingPick.id;
+        closePick();
+        closeSearch();
+        if (mode === 'play') playId(id); else addToQueue(id);
+    }
+
+    /* ---- GameControllers wiring ---- */
+    function init(isHostOrLocal, resetState) {
+        loadYouTubeApiOnce();
+        if (resetState) { queue = []; currentVideoId = null; setNowShowing(null); }
+        renderQueue();
+        setPlayPauseIcon(false);
+    }
+    function onData(payload) {
+        if (!payload || typeof payload.kind !== 'string') return;
+        switch (payload.kind) {
+            case 'video':
+                currentVideoId = payload.id;
+                loadYouTubeApiOnce();
+                if (player && typeof player.cueVideoById === 'function') player.cueVideoById(payload.id);
+                fetchVideoMeta(payload.id).then(meta => setNowShowing(meta.title));
+                break;
+            case 'sync': applyRemoteSync(payload.action, payload.time); break;
+            case 'play_together':
+                if (payload.videoId && payload.videoId !== currentVideoId) {
+                    currentVideoId = payload.videoId;
+                    loadYouTubeApiOnce();
+                    if (player && typeof player.cueVideoById === 'function') player.cueVideoById(payload.videoId);
+                    fetchVideoMeta(payload.videoId).then(meta => setNowShowing(meta.title));
+                }
+                beginCountdown(payload.target, payload.startTime || 0);
+                break;
+            case 'queue_add':
+                if (payload.item && !queue.some(q => q.uid === payload.item.uid)) { queue.push(payload.item); renderQueue(); }
+                break;
+            case 'queue_remove': queue = queue.filter(q => q.uid !== payload.uid); renderQueue(); break;
+            case 'queue_update': { const f = queue.find(q => q.uid === payload.uid); if (f) { f.title = payload.title; renderQueue(); } break; }
+            case 'queue_sync': queue = Array.isArray(payload.queue) ? payload.queue : queue; renderQueue(); break;
+        }
+    }
+
+    GameControllers.ytsync = {
+        init, onData,
+        statusText() { return localMode ? 'Solo watch mode' : 'Watching together — it syncs live'; },
+        canTakeback() { return false; },
+        resync() {
+            if (localMode) return;
+            gameSend({ kind: 'queue_sync', queue });
+            if (currentVideoId) gameSend({ kind: 'video', id: currentVideoId });
+            if (playerReady && player && typeof player.getCurrentTime === 'function') {
+                const isPlaying = typeof player.getPlayerState === 'function' && player.getPlayerState() === YT.PlayerState.PLAYING;
+                const t = player.getCurrentTime();
+                setTimeout(() => gameSend({ kind: 'sync', action: isPlaying ? 'play' : 'pause', time: t }), currentVideoId ? 600 : 0);
+            }
+        }
+    };
+
+    window.YTSync = {
+        loadFromInput, addFromInput, togglePlay, seekBy, playTogether, retryStuck,
+        openSearch, closeSearch, runSearch, confirmPick, closePick
+    };
+})();
+
+// ===================================================================
 // BOOT
 // ===================================================================
 setMyIdDisplay('connecting…', true);
+prefillLastRoomCode();
 initPeer(0);
 </script>
 
