@@ -1009,7 +1009,7 @@ body.custom-cursor-active input, body.custom-cursor-active textarea, body.custom
     60% { transform: translateY(-3px) scale(1.02) rotate(0.5deg); }
     100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
 }
-.cozy-player-top { display: flex; align-items: center; gap: 8px; }
+.cozy-player-top { display: flex; align-items: center; gap: 6px; }
 .cozy-player-art {
     width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px;
     background: var(--accent-dim);
@@ -2237,6 +2237,9 @@ body.custom-cursor-active input, body.custom-cursor-active textarea, body.custom
         <button class="cozy-player-collapse-btn" id="cozy-player-collapse-btn" onclick="toggleCozyPlayerCollapse()" title="Collapse" aria-label="Collapse player">
             <svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
+        <button class="cozy-player-collapse-btn" id="cozy-player-close-btn" onclick="dismissCozyPlayer()" title="Close player" aria-label="Close player">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
     </div>
 
     <div class="cozy-player-body">
@@ -3413,6 +3416,28 @@ function enterGame() {
     updateCursorButtonVisibility();
     const landingMusicBtn = document.getElementById('music-btn-landing');
     if (landingMusicBtn) landingMusicBtn.classList.add('hidden');
+    resetCozyPlayerForNewRoom();
+    applyDesktopArenaDefaults();
+}
+
+// PC-only conveniences applied the moment either player lands in the game
+// arena — gated on isDesktopPointer() so touch devices keep the normal
+// tap-to-open chat and tap-cozy-music-to-summon-widget flow untouched.
+// 1) Auto-opens the chat drawer for both players so nobody has to click
+//    the chat icon first — on wide desktop viewports this is the docked
+//    side panel (see the 1240px "Desktop docked chat" rule above), so it
+//    doesn't eat into the board area even left open the whole game.
+// 2) Re-shows the cozy player if this player already touched music
+//    earlier in the room (see cozyPlayerEverTouchedThisRoom below) —
+//    without this, resetCozyPlayerForNewRoom() above would otherwise
+//    only reset at the true start of a room, but a first-time desktop
+//    visitor who turned music on, then reloaded/reconnected mid-room,
+//    would have to reopen the picker again for no reason.
+function applyDesktopArenaDefaults() {
+    if (!isDesktopPointer()) return;
+    const chatDrawer = document.getElementById('chat-drawer');
+    if (chatDrawer) chatDrawer.classList.remove('hidden');
+    if (cozyPlayerEverTouchedThisRoom) activateCozyPlayer();
 }
 
 function updateAvatars() {
@@ -4260,6 +4285,7 @@ function playMusicTrack(file, fromRemote) {
         if (token !== musicLoadToken) return; // superseded by a newer pick meanwhile
         musicIsPlaying = true;
         saveMusicPrefs();
+        activateCozyPlayer();
         updateMusicButtons();
         buildMusicTrackList();
         if (!fromRemote) broadcastMusicState();
@@ -4329,14 +4355,58 @@ let cozyPlayerRafPending = false;
 
 function cozyPlayerEl() { return document.getElementById('cozy-player'); }
 
+// Once true, the widget stays mounted for the rest of the room session
+// even while paused — set the moment the user opens the picker or hits
+// play from any entry point, cleared per-room in enterGame() so a fresh
+// room that never touched music doesn't get an empty player sitting on
+// screen. cozyPlayerDismissed lets the user explicitly close it (the ×
+// button) without that being undone by the next timeupdate tick; the
+// header note button (or reopening the picker) reactivates it.
+let cozyPlayerActivated = false;
+let cozyPlayerDismissed = false;
+// Separate from cozyPlayerActivated: this one is NOT cleared by the ×
+// close button, only by a genuinely new room (resetCozyPlayerForNewRoom).
+// It answers "has this player touched cozy music at all this room" so
+// applyDesktopArenaDefaults() (PC only) can bring the widget back after
+// a reconnect/enterGame() re-run even if it was manually dismissed
+// earlier — matching how the header note button and chat both still
+// work normally after being closed.
+let cozyPlayerEverTouchedThisRoom = false;
+
 // Mirrors isDesktopPointer() from the cursor-picker feature above —
 // same signal (fine pointer + real hover), same reasoning: never show
 // a mouse-oriented floating widget to a touch device, regardless of
 // viewport width (a fine-pointer tablet in narrow split-screen should
 // still get it if it clears the CSS breakpoint; a wide phone in
 // landscape should not, since pointer stays coarse).
+// Persists across play/pause (was previously musicIsPlaying-only, which
+// made the widget vanish on pause and forced re-opening the picker just
+// to get it back). It only requires: desktop pointer, tracks exist, the
+// player has been activated this room, and the user hasn't closed it.
 function cozyPlayerShouldShow() {
-    return isDesktopPointer() && musicIsPlaying && musicTracks.length > 0;
+    return isDesktopPointer() && musicTracks.length > 0 && cozyPlayerActivated && !cozyPlayerDismissed;
+}
+
+function activateCozyPlayer() {
+    cozyPlayerActivated = true;
+    cozyPlayerDismissed = false;
+    cozyPlayerEverTouchedThisRoom = true;
+    updateCozyPlayer();
+}
+
+function dismissCozyPlayer() {
+    cozyPlayerDismissed = true;
+    updateCozyPlayer();
+}
+
+// Called from enterGame() so each fresh room starts clean — the widget
+// shouldn't carry over "activated" from a previous room, and shouldn't
+// appear pre-emptively before the user has touched cozy music at all.
+function resetCozyPlayerForNewRoom() {
+    cozyPlayerActivated = false;
+    cozyPlayerDismissed = false;
+    cozyPlayerEverTouchedThisRoom = false;
+    updateCozyPlayer();
 }
 
 function ensureCozyPlayerBound() {
