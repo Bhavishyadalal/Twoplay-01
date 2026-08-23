@@ -977,6 +977,141 @@ body.custom-cursor-active input, body.custom-cursor-active textarea, body.custom
 @media (max-width: 480px) { .music-btn-landing { top: 12px; right: 12px; } }
 .music-btn-landing.hidden { display: none; }
 
+/* ===================================================================
+   COZY DESKTOP MUSIC PLAYER — a small floating widget that appears in
+   the bottom-right corner once music starts, PC/pointer-fine only (see
+   isDesktopPointer(); phones/tablets keep the plain picker + header
+   note instead). Built from the same candy-shop tokens as the rest of
+   the site: wobbly blob radius, sticker-drop shadow, cream/accent
+   palette, Baloo display font — so it reads as part of Twoplay rather
+   than a bolted-on generic player. The cat mascot bops along on the
+   album-art tile while a track plays, echoing the header logo's idle
+   sway/ear/tail animation.
+   =================================================================== */
+#cozy-player {
+    position: fixed; right: 22px; bottom: 22px; z-index: 45;
+    width: 272px; box-sizing: border-box;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--blob-lg);
+    box-shadow: var(--shadow-lift);
+    padding: 14px 14px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    animation: cozyPlayerIn 0.38s cubic-bezier(.2,.9,.3,1.25) backwards;
+    transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+}
+#cozy-player:hover { box-shadow: 6px 8px 0 rgba(43,36,64,0.16); }
+#cozy-player.hidden { display: none; }
+#cozy-player.collapsed { width: 210px; padding: 10px 12px; }
+#cozy-player.collapsed .cozy-player-body { display: none; }
+@keyframes cozyPlayerIn {
+    0% { opacity: 0; transform: translateY(18px) scale(0.92) rotate(-2deg); }
+    60% { transform: translateY(-3px) scale(1.02) rotate(0.5deg); }
+    100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+.cozy-player-top { display: flex; align-items: center; gap: 8px; }
+.cozy-player-art {
+    width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px;
+    background: var(--accent-dim);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; position: relative;
+}
+.cozy-player-art .cat-logo { width: 30px; height: 30px; }
+.cozy-player-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cozy-player-eyebrow { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; gap: 4px; }
+.cozy-player-track { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cozy-player-collapse-btn {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--surface-2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center; color: var(--text-dim);
+    transition: background 0.15s, transform 0.14s;
+}
+.cozy-player-collapse-btn:hover { background: var(--surface-3); }
+.cozy-player-collapse-btn:active { transform: scale(0.88); }
+.cozy-player-collapse-btn svg { width: 12px; height: 12px; transition: transform 0.25s ease; }
+#cozy-player.collapsed .cozy-player-collapse-btn svg { transform: rotate(180deg); }
+
+.cozy-player-body { display: flex; flex-direction: column; gap: 10px; }
+
+.cozy-player-scrub { display: flex; align-items: center; gap: 8px; }
+.cozy-player-time { font-family: var(--font-mono); font-size: 9px; color: var(--text-faint); width: 30px; flex-shrink: 0; text-align: center; }
+.cozy-player-seek {
+    -webkit-appearance: none; appearance: none; flex: 1; height: 6px; border-radius: 6px;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) 0%, var(--surface-3) 0%, var(--surface-3) 100%);
+    cursor: pointer; outline: none;
+}
+.cozy-player-seek::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; box-shadow: 0 1px 3px rgba(43,36,64,0.35); cursor: pointer; }
+.cozy-player-seek::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; box-shadow: 0 1px 3px rgba(43,36,64,0.35); cursor: pointer; }
+.cozy-player-seek::-moz-range-track { height: 6px; border-radius: 6px; background: var(--surface-3); }
+
+.cozy-player-controls { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.cozy-ctrl-btn {
+    flex-shrink: 0; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--border);
+    color: var(--text); display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, border-color 0.15s, transform 0.14s;
+}
+.cozy-ctrl-btn:hover { background: var(--surface-3); border-color: rgba(43,36,64,0.18); }
+.cozy-ctrl-btn:active { transform: scale(0.88); }
+.cozy-ctrl-btn.small { width: 30px; height: 30px; }
+.cozy-ctrl-btn.small svg { width: 14px; height: 14px; }
+.cozy-ctrl-btn.play {
+    width: 42px; height: 42px; background: var(--accent); border-color: var(--accent);
+    color: #fff; box-shadow: 0 3px 0 #D14E82;
+}
+.cozy-ctrl-btn.play:hover { filter: brightness(1.05); }
+.cozy-ctrl-btn.play:active { box-shadow: 0 1px 0 #D14E82; transform: translateY(2px) scale(0.96); }
+.cozy-ctrl-btn.play svg { width: 18px; height: 18px; }
+.cozy-ctrl-btn .icon-cozy-pause.hidden, .cozy-ctrl-btn .icon-cozy-play.hidden { display: none; }
+
+.cozy-player-bottom-row { display: flex; align-items: center; gap: 8px; }
+.cozy-player-vol-wrap { display: flex; align-items: center; gap: 6px; flex: 1; }
+.cozy-player-vol-icon { flex-shrink: 0; width: 15px; height: 15px; color: var(--text-faint); }
+.cozy-player-vol {
+    -webkit-appearance: none; appearance: none; flex: 1; height: 5px; border-radius: 6px;
+    background: var(--surface-3); cursor: pointer; outline: none; max-width: 88px;
+}
+.cozy-player-vol::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--text-dim); border: 2px solid #fff; box-shadow: 0 1px 2px rgba(43,36,64,0.3); cursor: pointer; }
+.cozy-player-vol::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--text-dim); border: 2px solid #fff; cursor: pointer; }
+.cozy-player-list-btn {
+    flex-shrink: 0; font-size: 10px; font-weight: 800; color: var(--text-dim);
+    background: var(--surface-2); border: 2px solid var(--border); border-radius: 20px;
+    padding: 4px 9px; display: flex; align-items: center; gap: 4px; transition: background 0.15s;
+}
+.cozy-player-list-btn:hover { background: var(--surface-3); }
+.cozy-player-list-btn svg { width: 11px; height: 11px; }
+
+/* the mascot cat bops on the art tile only while a track is playing */
+.cozy-player-art .cat-logo .cat-tail,
+.cozy-player-art .cat-logo .cat-ear-l,
+.cozy-player-art .cat-logo .cat-ear-r,
+.cozy-player-art .cat-logo .cat-eye { animation-play-state: paused; }
+#cozy-player.is-playing .cozy-player-art .cat-logo .cat-tail,
+#cozy-player.is-playing .cozy-player-art .cat-logo .cat-ear-l,
+#cozy-player.is-playing .cozy-player-art .cat-logo .cat-ear-r,
+#cozy-player.is-playing .cozy-player-art .cat-logo .cat-eye { animation-play-state: running; }
+#cozy-player.is-playing .cozy-player-art { animation: cozyArtBob 1.6s ease-in-out infinite; }
+@keyframes cozyArtBob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-2px) rotate(-3deg); } }
+
+/* little music-note particles drifting off the art tile while playing */
+.cozy-note { position: absolute; font-size: 11px; color: var(--accent); pointer-events: none; opacity: 0; left: 50%; top: 40%; animation: cozyNoteFloat 1.8s ease-out forwards; }
+@keyframes cozyNoteFloat {
+    0% { opacity: 0; transform: translate(-50%, 0) scale(0.6) rotate(-8deg); }
+    15% { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(-50% + 14px), -34px) scale(1) rotate(10deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #cozy-player, .cozy-player-art, .cozy-note { animation: none !important; }
+}
+
+/* Desktop-only widget: never take up phone/tablet real estate, and never
+   fight the mobile "more" menu / board for space. isDesktopPointer() also
+   gates this in JS so it's not just visually hidden but never mounted on
+   touch devices in the first place. */
+@media (max-width: 700px), (pointer: coarse) {
+    #cozy-player { display: none !important; }
+}
+
 /* ---- music picker ---- */
 .music-track-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; max-height: 44vh; overflow-y: auto; }
 .music-track-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--blob-sm); background: var(--surface-2); border: 2px solid var(--border-soft); cursor: pointer; transition: border-color 0.15s, background 0.15s; text-align: left; }
@@ -2069,6 +2204,71 @@ body.custom-cursor-active input, body.custom-cursor-active textarea, body.custom
         <div class="music-track-list" id="music-track-list"></div>
         <button class="btn btn-ghost music-off-row" onclick="stopMusic()">Turn off</button>
         <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeMusicPicker()">Close</button>
+    </div>
+</div>
+
+<!-- ============================================================
+     COZY DESKTOP MUSIC PLAYER
+     A small floating widget, PC-only (see isDesktopPointer()), that
+     appears once cozy music starts playing. Mirrors the site's cat
+     mascot + candy-shop styling. All controls call straight into the
+     existing music engine (playMusicTrack / stopMusic / musicEl) —
+     no separate audio element, so this stays in sync with the header
+     buttons, the picker overlay, and the cross-player music sync.
+     ============================================================ -->
+<div class="hidden" id="cozy-player" role="region" aria-label="Cozy music player">
+    <div class="cozy-player-top">
+        <span class="cozy-player-art" id="cozy-player-art">
+            <svg class="cat-logo" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
+                <path class="cat-tail" d="M31 30c4 1 6-2 5-5" stroke="#FFD9EC" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+                <path class="cat-ear cat-ear-l" d="M12 15 9 6l7 4Z" fill="#FFE3F0"/>
+                <path class="cat-ear cat-ear-r" d="M30 15l3-9-7 4Z" fill="#FFE3F0"/>
+                <ellipse cx="21" cy="22" rx="12" ry="10.5" fill="#FFF3E4"/>
+                <rect class="cat-eye cat-eye-l" x="14.5" y="20" width="3.4" height="4.2" rx="1.7" fill="#2B2440"/>
+                <rect class="cat-eye cat-eye-r" x="24.1" y="20" width="3.4" height="4.2" rx="1.7" fill="#2B2440"/>
+                <path d="M19.3 27c1 .9 2.4.9 3.4 0" stroke="#D14E82" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+                <ellipse cx="21" cy="25.3" rx="1.1" ry="0.9" fill="#FF9EBE"/>
+            </svg>
+        </span>
+        <span class="cozy-player-titles">
+            <span class="cozy-player-eyebrow">♪ Cozy music</span>
+            <span class="cozy-player-track" id="cozy-player-track">—</span>
+        </span>
+        <button class="cozy-player-collapse-btn" id="cozy-player-collapse-btn" onclick="toggleCozyPlayerCollapse()" title="Collapse" aria-label="Collapse player">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+    </div>
+
+    <div class="cozy-player-body">
+        <div class="cozy-player-scrub">
+            <span class="cozy-player-time" id="cozy-player-time-cur">0:00</span>
+            <input type="range" class="cozy-player-seek" id="cozy-player-seek" min="0" max="100" value="0" step="0.1" aria-label="Seek">
+            <span class="cozy-player-time" id="cozy-player-time-dur">0:00</span>
+        </div>
+
+        <div class="cozy-player-controls">
+            <button class="cozy-ctrl-btn small" onclick="cozyPlayerPrev()" title="Previous track" aria-label="Previous track">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M6 5v14M18 5 8 12l10 7V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>
+            </button>
+            <button class="cozy-ctrl-btn play" id="cozy-player-playpause-btn" onclick="cozyPlayerTogglePlay()" title="Play/Pause" aria-label="Play or pause">
+                <svg class="icon-cozy-play" viewBox="0 0 24 24" fill="none"><path d="M8 5.5v13l11-6.5-11-6.5Z" fill="currentColor"/></svg>
+                <svg class="icon-cozy-pause hidden" viewBox="0 0 24 24" fill="none"><rect x="6.5" y="5" width="4" height="14" rx="1.2" fill="currentColor"/><rect x="13.5" y="5" width="4" height="14" rx="1.2" fill="currentColor"/></svg>
+            </button>
+            <button class="cozy-ctrl-btn small" onclick="cozyPlayerNext()" title="Next track" aria-label="Next track">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M18 5v14M6 5l10 7-10 7V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>
+            </button>
+        </div>
+
+        <div class="cozy-player-bottom-row">
+            <span class="cozy-player-vol-wrap">
+                <svg class="cozy-player-vol-icon" id="cozy-player-vol-icon" viewBox="0 0 24 24" fill="none"><path d="M4 9v6h4l5 4V5L8 9H4Z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <input type="range" class="cozy-player-vol" id="cozy-player-vol" min="0" max="100" value="70" aria-label="Volume">
+            </span>
+            <button class="cozy-player-list-btn" onclick="openMusicPicker()" title="Choose a different track">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Tracks
+            </button>
+        </div>
     </div>
 </div>
 
@@ -4111,7 +4311,175 @@ function updateMusicButtons() {
         btn.querySelector('.icon-music-on').classList.toggle('hidden', !musicIsPlaying);
         btn.title = musicIsPlaying ? 'Cozy music (playing)' : 'Cozy music';
     });
+    updateCozyPlayer();
 }
+
+// ===================================================================
+// COZY DESKTOP MUSIC PLAYER — floating widget, PC/pointer-fine only.
+// Reuses the existing <audio> element (getMusicEl()) and existing
+// playMusicTrack()/stopMusic() functions as its single source of
+// truth, so this is purely a richer control surface — it never owns
+// playback state itself and stays correct whether music was started
+// from here, the header note button, the picker overlay, or synced
+// in from the opponent's side.
+// ===================================================================
+let cozyPlayerBound = false;
+let cozyPlayerCollapsed = false;
+let cozyPlayerRafPending = false;
+
+function cozyPlayerEl() { return document.getElementById('cozy-player'); }
+
+// Mirrors isDesktopPointer() from the cursor-picker feature above —
+// same signal (fine pointer + real hover), same reasoning: never show
+// a mouse-oriented floating widget to a touch device, regardless of
+// viewport width (a fine-pointer tablet in narrow split-screen should
+// still get it if it clears the CSS breakpoint; a wide phone in
+// landscape should not, since pointer stays coarse).
+function cozyPlayerShouldShow() {
+    return isDesktopPointer() && musicIsPlaying && musicTracks.length > 0;
+}
+
+function ensureCozyPlayerBound() {
+    if (cozyPlayerBound) return;
+    cozyPlayerBound = true;
+    const seek = document.getElementById('cozy-player-seek');
+    const vol = document.getElementById('cozy-player-vol');
+    const el = getMusicEl();
+
+    let seekDragging = false;
+    seek.addEventListener('input', () => {
+        seekDragging = true;
+        const pct = Number(seek.value);
+        seek.style.background = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, var(--surface-3) ${pct}%, var(--surface-3) 100%)`;
+        document.getElementById('cozy-player-time-cur').innerText = formatCozyTime((pct / 100) * (el.duration || 0));
+    });
+    seek.addEventListener('change', () => {
+        if (el.duration) el.currentTime = (Number(seek.value) / 100) * el.duration;
+        seekDragging = false;
+    });
+    seek._dragging = () => seekDragging;
+
+    vol.addEventListener('input', () => {
+        el.volume = Number(vol.value) / 100;
+        updateCozyVolIcon();
+        try { localStorage.setItem('twoplay_music_volume', vol.value); } catch (e) {}
+    });
+
+    // restore saved volume (defaults to 70 set in markup)
+    try {
+        const savedVol = localStorage.getItem('twoplay_music_volume');
+        if (savedVol != null) { vol.value = savedVol; el.volume = Number(savedVol) / 100; }
+        else { el.volume = Number(vol.value) / 100; }
+    } catch (e) { el.volume = Number(vol.value) / 100; }
+    updateCozyVolIcon();
+
+    el.addEventListener('timeupdate', () => {
+        if (seek._dragging && seek._dragging()) return;
+        if (!el.duration) return;
+        const pct = (el.currentTime / el.duration) * 100;
+        seek.value = pct;
+        seek.style.background = `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, var(--surface-3) ${pct}%, var(--surface-3) 100%)`;
+        document.getElementById('cozy-player-time-cur').innerText = formatCozyTime(el.currentTime);
+    });
+    el.addEventListener('loadedmetadata', () => {
+        document.getElementById('cozy-player-time-dur').innerText = formatCozyTime(el.duration);
+    });
+    el.addEventListener('ended', () => {
+        // el.loop is normally true (ambient tracks repeat), but if a
+        // future track ever has loop disabled, advance instead of
+        // just going silent.
+        if (!el.loop) cozyPlayerNext();
+    });
+}
+
+function formatCozyTime(sec) {
+    if (!isFinite(sec) || sec < 0) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return m + ':' + String(s).padStart(2, '0');
+}
+
+function updateCozyVolIcon() {
+    const vol = document.getElementById('cozy-player-vol');
+    const icon = document.getElementById('cozy-player-vol-icon');
+    if (!vol || !icon) return;
+    const v = Number(vol.value);
+    icon.innerHTML = v === 0
+        ? '<path d="M4 9v6h4l5 4V5L8 9H4Z" fill="currentColor"/><path d="M17 9l4 6M21 9l-4 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+        : '<path d="M4 9v6h4l5 4V5L8 9H4Z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' + (v > 55 ? '<path d="M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.55"/>' : '');
+}
+
+function updateCozyPlayer() {
+    const wrap = cozyPlayerEl();
+    if (!wrap) return;
+    const show = cozyPlayerShouldShow();
+    wrap.classList.toggle('hidden', !show);
+    if (!show) return;
+
+    ensureCozyPlayerBound();
+    wrap.classList.toggle('is-playing', musicIsPlaying);
+
+    const track = musicTracks.find(t => t.file === musicCurrentFile);
+    document.getElementById('cozy-player-track').innerText = track ? track.title : 'Cozy music';
+
+    const playBtn = document.getElementById('cozy-player-playpause-btn');
+    playBtn.querySelector('.icon-cozy-play').classList.toggle('hidden', musicIsPlaying);
+    playBtn.querySelector('.icon-cozy-pause').classList.toggle('hidden', !musicIsPlaying);
+    playBtn.title = musicIsPlaying ? 'Pause' : 'Play';
+
+    if (musicIsPlaying) spawnCozyNote();
+}
+
+function toggleCozyPlayerCollapse() {
+    cozyPlayerCollapsed = !cozyPlayerCollapsed;
+    const wrap = cozyPlayerEl();
+    if (wrap) wrap.classList.toggle('collapsed', cozyPlayerCollapsed);
+    const btn = document.getElementById('cozy-player-collapse-btn');
+    if (btn) btn.title = cozyPlayerCollapsed ? 'Expand' : 'Collapse';
+}
+
+function cozyPlayerTogglePlay() {
+    if (musicIsPlaying) {
+        stopMusic();
+    } else if (musicCurrentFile) {
+        playMusicTrack(musicCurrentFile);
+    } else if (musicTracks.length) {
+        playMusicTrack(musicTracks[0].file);
+    }
+}
+
+function cozyPlayerStep(dir) {
+    if (!musicTracks.length) return;
+    let idx = musicTracks.findIndex(t => t.file === musicCurrentFile);
+    if (idx === -1) idx = 0;
+    idx = (idx + dir + musicTracks.length) % musicTracks.length;
+    playMusicTrack(musicTracks[idx].file);
+}
+function cozyPlayerNext() { cozyPlayerStep(1); }
+function cozyPlayerPrev() { cozyPlayerStep(-1); }
+
+// A few little music-note particles that drift up from the album art
+// while a track plays — purely decorative, capped so they never pile
+// up if updateCozyPlayer() fires in a tight loop.
+let cozyNoteCount = 0;
+function spawnCozyNote() {
+    if (cozyNoteCount >= 2) return;
+    const art = document.getElementById('cozy-player-art');
+    if (!art) return;
+    cozyNoteCount++;
+    const note = document.createElement('span');
+    note.className = 'cozy-note';
+    note.textContent = Math.random() < 0.5 ? '♪' : '♫';
+    note.style.left = (40 + Math.random() * 20) + '%';
+    art.appendChild(note);
+    setTimeout(() => { note.remove(); cozyNoteCount--; }, 1800);
+}
+// Gentle drip of notes while a track is actually playing (not just on
+// every state change, which would only fire once per play/pause).
+setInterval(() => {
+    const wrap = cozyPlayerEl();
+    if (wrap && !wrap.classList.contains('hidden') && musicIsPlaying) spawnCozyNote();
+}, 2200);
 
 
 
