@@ -69,7 +69,9 @@ library is **not downloaded with the initial page**; playback uses selected file
 
 For **Vercel**, import this repository. The included `vercel.json` runs
 `npm run build` and publishes `dist/`. Preview branches can be reviewed before
-merging to `main`. For Netlify/Cloudflare, use the same build command/output.
+merging to `main`. For Netlify/Cloudflare Pages, use the same build command/output.
+For the connected **Cloudflare Workers Builds** service, `wrangler.jsonc` declares
+the static assets and runs the production build before deployment (`npx wrangler deploy`).
 
 For a subpath such as GitHub Pages, publish the **contents of `dist/`**, not the
 source root. Generated script, style, font and image URLs support project subpaths.
