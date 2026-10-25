@@ -296,7 +296,7 @@ function closeThemePicker() { document.getElementById('theme-picker-overlay').cl
 // ROOM THEMES — background + accent color for the in-game shell.
 // Local-only display preference (never sent to the opponent), stored
 // per-room so different rooms can remember different looks.
-// =================================================================== 
+// ===================================================================
 const ROOM_THEMES = {
     classic:   { name: 'Classic',   swatch: 'linear-gradient(135deg, #FFF8EE 55%, #FF6FA5 55%)' },
     sunset:    { name: 'Sunset',    swatch: 'linear-gradient(135deg, #FFF3E9 55%, #FF7A45 55%)' },
