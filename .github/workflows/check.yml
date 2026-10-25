@@ -1,0 +1,31 @@
+name: Website checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Check production UI
+        run: |
+          npm run preview -- --port 8861 > /tmp/twoplay-preview.log 2>&1 &
+          node -e "let n=0;const check=()=>fetch('http://localhost:8861').then(r=>{if(!r.ok)throw Error()}).catch(()=>{if(++n>30)process.exit(1);setTimeout(check,500)});check()"
+          TWOPLAY_TEST_URL=http://localhost:8861/ npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: twoplay-browser-previews
+          path: .artifacts/*.png
+          retention-days: 7
